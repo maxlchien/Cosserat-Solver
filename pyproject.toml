@@ -7,7 +7,7 @@ authors = [
     { name = "maxlchien", email = "90492587+maxlchien@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = ["numpy", "scipy", "matplotlib", "obspy"]
+dependencies = ["numpy", "scipy", "mpmath", "matplotlib", "obspy"]
 
 
 [dependency-groups]
