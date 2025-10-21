@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import numpy as np
+import scipy.special
 from mpmath import mp
 
 import cosserat_solver.consts as consts
@@ -9,7 +11,7 @@ from cosserat_solver.dispersion import DispersionHelper
 class Integrator:
     """
     Helper class for Hankel integrals.
-    Supports a high-precision mode using mpmath for complex arithmetic.
+    Uses mpmath for high precision complex arithmetic.
     """
 
     def __init__(self, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, *, digits_precision=50):
@@ -126,3 +128,223 @@ class Integrator:
             r = Integrator._pick_pole(r2, omega)
             rtn.append((r, branch))
         return rtn
+
+    def integrate(self, analytic, omega, branch):
+        r"""
+        Using the residue theorem, integrate the function analytic/denom over the +i0 prescription.
+        """
+        omega = mp.mpf(omega)
+        poles_and_branches = self.get_poles_and_branches(omega)
+
+        integral = mp.mpc(0)
+        for r_pole, pole_branch in poles_and_branches:
+            if pole_branch != branch:
+                continue
+            residue = analytic(r_pole, omega, branch) / self.denom_prime(
+                r_pole, omega, branch
+            )
+            integral += residue
+
+        integral *= mp.mpc(0, 2 * mp.pi)
+        return integral
+
+    def _accurate_hankel1(order, z):
+        r"""
+        Compute the Hankel function of the first kind of given order to high accuracy for large arguments, combining
+            scipy.special.hankel1e and mpmath.
+        """
+        z = np.complex128(z)
+        if np.abs(z) < 10:
+            return mp.mpc(scipy.special.hankel1(order, z))
+        hankel1e = scipy.special.hankel1e(order, z)
+        hankel1e_mp = mp.mpc(hankel1e)
+        exp_term = mp.exp(mp.mpc(0, 1) * mp.mpc(z))
+        return hankel1e_mp * exp_term
+
+    def integral_3_0(self, normx, omega, branch):
+        r"""
+        Compute the integral
+            \frac{1}{8\pi}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r^3}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x}) dr
+        using the residue theorem. H_0^{(1)} is the Hankel function of the first kind of order 0.
+        """
+
+        def analytic(r, _, branch):
+            c_pm = self.dispersion_helper.c_pm(r, branch)
+            hankel = Integrator._accurate_hankel1(0, r * normx)
+            return (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+
+        return self.integrate(analytic, omega, branch) / mp.mpc(8 * mp.pi)
+
+    def integral_3_2(self, normx, omega, branch):
+        r"""
+        Compute the integral
+            \frac{1}{8\pi}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r^3}{r^2+\abs{c_\pm}^2}H_2^{(1)}(r\norm{x}) dr
+        using the residue theorem. H_2^{(1)} is the Hankel function of the first kind of order 2.
+        """
+
+        def analytic(r, _, branch):
+            c_pm = self.dispersion_helper.c_pm(r, branch)
+            hankel = Integrator._accurate_hankel1(2, r * normx)
+            return (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+
+        return self.integrate(analytic, omega, branch) / mp.mpc(8 * mp.pi)
+
+    def integral_2_1(self, normx, omega, branch):
+        r"""
+        Compute the integral
+            \frac{1}{8\pi}\sqrt{\frac{\rho}{j}}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r^2c_\pm}{r^2+\abs{c_\pm}^2}H_1^{(1)}(r\norm{x}) dr
+        using the residue theorem. H_1^{(1)} is the Hankel function of the first kind of order 1.
+        """
+
+        def analytic(r, _, branch):
+            c_pm = self.dispersion_helper.c_pm(r, branch)
+            hankel = Integrator._accurate_hankel1(1, r * normx)
+            return (r**2 * c_pm / (r**2 + abs(c_pm) ** 2)) * hankel
+
+        return (
+            self.integrate(analytic, omega, branch)
+            / mp.mpc(8 * mp.pi)
+            * mp.sqrt(self.rho / self.J)
+        )
+
+    def integral_1_0(self, normx, omega, branch):
+        r"""
+        Compute the integral
+            \frac{1}{8\pi}\frac{\rho}{j}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r\abs{c_\pm}}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x}) dr
+        using the residue theorem. H_0^{(1)} is the Hankel function of the first kind of order 0.
+        """
+
+        def analytic(r, _, branch):
+            c_pm = self.dispersion_helper.c_pm(r, branch)
+            hankel = Integrator._accurate_hankel1(0, r * normx)
+            return (r * abs(c_pm) / (r**2 + abs(c_pm) ** 2)) * hankel
+
+        return (
+            self.integrate(analytic, omega, branch)
+            / mp.mpc(8 * mp.pi)
+            * (self.rho / self.J)
+        )
+
+    def rotation_matrix(phi):
+        r"""
+            Compute the in-plane rotation matrix for angle phi.
+
+            This matrix is computed by
+
+            \begin{bmatrix}
+                \cos\phi & -\sin\phi & 0\\
+                \sin\phi & \cos\phi & 0\\
+                0 & 0 & 1
+            \end{bmatrix}
+        """
+        cos_phi = mp.cos(phi)
+        sin_phi = mp.sin(phi)
+        return mp.matrix(
+            [
+                [cos_phi, -sin_phi, mp.mpf(0)],
+                [sin_phi, cos_phi, mp.mpf(0)],
+                [mp.mpf(0), mp.mpf(0), mp.mpf(1)],
+            ]
+        )
+
+    def greens_x_omega_P(self, x, omega):
+        """
+        Compute the Green's function G(x, omega) for the P branch.
+        """
+        normx = mp.norm(x)
+        phi = mp.atan2(x[1], x[0])
+
+        c_P = mp.sqrt((self.lam + 2 * self.mu) / self.rho)
+        hankel1 = Integrator._accurate_hankel1
+
+        unrotated = mp.matrix(3, 3)
+        unrotated[0, 0] = hankel1(0, omega * normx / c_P) - hankel1(
+            2, omega * normx / c_P
+        )
+        unrotated[1, 1] = hankel1(0, omega * normx / c_P) + hankel1(
+            2, omega * normx / c_P
+        )
+        unrotated *= mp.mpc(0, 1) / 8 / (self.lam + 2 * self.mu)
+
+        R = Integrator.rotation_matrix(phi)
+        G_mp = R * unrotated * R.T
+        # convert to np.ndarray complex floats
+        return mp.matrix_to_np(G_mp).astype(np.complex128)
+
+    def greens_x_omega_plus(self, x, omega):
+        """
+        Compute the Green's function G(x, omega) for the + branch.
+
+        Intermediate computation is performed using mpmath precision, but result is converted to np.ndarray complex floats.
+
+        Arguments:
+            x: np.ndarray
+                2D position vector where to evaluate the Green's function.
+            omega: float
+                Angular frequency.
+        """
+        normx = mp.norm(x)
+        phi = mp.atan2(x[1], x[0])
+
+        unrotated = mp.matrix(3, 3)
+        unrotated[0, 0] = self.integral_3_0(
+            normx, omega, consts.PLUS_BRANCH
+        ) + self.integral_3_2(normx, omega, consts.PLUS_BRANCH)
+        unrotated[1, 1] = self.integral_3_0(
+            normx, omega, consts.PLUS_BRANCH
+        ) - self.integral_3_2(normx, omega, consts.PLUS_BRANCH)
+        unrotated[1, 2] = mp.mpc(0, 1) * self.integral_2_1(
+            normx, omega, consts.PLUS_BRANCH
+        )
+        unrotated[2, 1] = -mp.mpc(0, 1) * self.integral_2_1(
+            normx, omega, consts.PLUS_BRANCH
+        )
+        unrotated[2, 2] = self.integral_1_0(normx, omega, consts.PLUS_BRANCH)
+
+        R = Integrator.rotation_matrix(phi)
+        G_mp = R * unrotated * R.T
+        # convert to np.ndarray complex floats
+        return mp.matrix_to_np(G_mp).astype(np.complex128)
+
+    def greens_x_omega_minus(self, x, omega):
+        """
+        Compute the Green's function G(x, omega) for the - branch.
+
+        Intermediate computation is performed using mpmath precision, but result is converted to np.ndarray complex floats.
+        """
+        normx = mp.norm(x)
+        phi = mp.atan2(x[1], x[0])
+
+        unrotated = mp.matrix(3, 3)
+        unrotated[0, 0] = self.integral_3_0(
+            normx, omega, -consts.PLUS_BRANCH
+        ) + self.integral_3_2(normx, omega, -consts.PLUS_BRANCH)
+        unrotated[1, 1] = self.integral_3_0(
+            normx, omega, -consts.PLUS_BRANCH
+        ) - self.integral_3_2(normx, omega, -consts.PLUS_BRANCH)
+        unrotated[1, 2] = mp.mpc(0, 1) * self.integral_2_1(
+            normx, omega, -consts.PLUS_BRANCH
+        )
+        unrotated[2, 1] = -mp.mpc(0, 1) * self.integral_2_1(
+            normx, omega, -consts.PLUS_BRANCH
+        )
+        unrotated[2, 2] = self.integral_1_0(normx, omega, -consts.PLUS_BRANCH)
+
+        R = Integrator.rotation_matrix(phi)
+        G_mp = R * unrotated * R.T
+        # convert to np.ndarray complex floats
+        return mp.matrix_to_np(G_mp).astype(np.complex128)
+
+    def greens_x_omega(self, x, omega):
+        """
+        Compute the Green's function G(x, omega) for both branches.
+
+        Intermediate computation is performed using mpmath precision, but result is converted to np.ndarray complex floats.
+
+        """
+
+        G_P = self.greens_x_omega_P(x, omega)
+        G_plus = self.greens_x_omega_plus(x, omega)
+        G_minus = self.greens_x_omega_minus(x, omega)
+
+        return G_P + G_plus + G_minus

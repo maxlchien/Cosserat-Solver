@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import itertools
-
 import pytest
 from mpmath import mp
 
@@ -73,7 +71,19 @@ K_VALUES = [
     mp.mpf("100.0"),
     mp.mpf("1000.0"),
 ]
+
+
+@pytest.fixture(params=K_VALUES)
+def k_value(request):
+    return request.param
+
+
 OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+
+
+@pytest.fixture(params=OMEGA_VALUES)
+def omega_value(request):
+    return request.param
 
 
 # --- Fixture for material parameters ---
@@ -83,25 +93,13 @@ def material_parameters(request):
     return request.param
 
 
-# --- Fixture for (k, omega) combinations ---
-@pytest.fixture(
-    params=[
-        {"k": k, "omega": omega}
-        for k, omega in itertools.product(K_VALUES, OMEGA_VALUES)
-    ]
-)
-def wave_parameters(request):
-    """Fixture providing combinations of wavenumber and frequency."""
-    return request.param
-
-
 @pytest.fixture(params=[consts.PLUS_BRANCH, -consts.PLUS_BRANCH])
 def branch(request):
     """Fixture providing the branch of the dispersion relation."""
     return request.param
 
 
-def test_denom_prime(material_parameters, wave_parameters, branch):
+def test_denom_prime(material_parameters, k_value, omega_value, branch):
     """Test that the derivative of the denominator function is computed correctly."""
     params = material_parameters
     rho = params["rho"]
@@ -113,8 +111,8 @@ def test_denom_prime(material_parameters, wave_parameters, branch):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    k = wave_parameters["k"]
-    omega = wave_parameters["omega"]
+    k = k_value
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -141,7 +139,7 @@ def test_denom_prime(material_parameters, wave_parameters, branch):
     )
 
 
-def test_alternate_pole_repr(material_parameters, wave_parameters):
+def test_alternate_pole_repr(material_parameters, omega_value):
     params = material_parameters
     rho = params["rho"]
     lam = params["lam"]
@@ -152,7 +150,7 @@ def test_alternate_pole_repr(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -179,7 +177,7 @@ def test_alternate_pole_repr(material_parameters, wave_parameters):
         )
 
 
-def test_denom_zeros(material_parameters, wave_parameters):
+def test_denom_zeros(material_parameters, omega_value):
     """Test that the denominator function evaluates to zero at the computed poles."""
     params = material_parameters
     rho = params["rho"]
@@ -191,7 +189,7 @@ def test_denom_zeros(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -220,7 +218,7 @@ def test_denom_zeros(material_parameters, wave_parameters):
         )
 
 
-def test_combined_equation_1(material_parameters, wave_parameters):
+def test_combined_equation_1(material_parameters, omega_value):
     """Test that the first expression eliminating c_pm is satisfied at the poles."""
     params = material_parameters
     rho = params["rho"]
@@ -232,7 +230,7 @@ def test_combined_equation_1(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -262,7 +260,7 @@ def test_combined_equation_1(material_parameters, wave_parameters):
         )
 
 
-def test_combined_equation_2(material_parameters, wave_parameters):
+def test_combined_equation_2(material_parameters, omega_value):
     """Test that the second expression eliminating c_pm is satisfied at the poles."""
     params = material_parameters
     rho = params["rho"]
@@ -274,7 +272,7 @@ def test_combined_equation_2(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -307,7 +305,7 @@ def test_combined_equation_2(material_parameters, wave_parameters):
         )
 
 
-def test_dispersion_r2(material_parameters, wave_parameters):
+def test_dispersion_r2(material_parameters, omega_value):
     """Test that the dispersion relation is satisfied at the poles."""
     params = material_parameters
     rho = params["rho"]
@@ -319,7 +317,7 @@ def test_dispersion_r2(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -373,10 +371,10 @@ def r2_value(request):
     return request.param
 
 
-def test_pole_selection(r2_value, wave_parameters):
+def test_pole_selection(r2_value, omega_value):
     """Test that the pole selection always produces poles in the upper half plane, or on the side of the real axis corresponding to
     the sign of omega"""
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     r = Integrator._pick_pole(r2_value, omega)
     # check that the pole is in the upper half plane, or on the correct side of the real axis
@@ -388,7 +386,7 @@ def test_pole_selection(r2_value, wave_parameters):
     )
 
 
-def test_pole_locations(material_parameters, wave_parameters):
+def test_pole_locations(material_parameters, omega_value):
     """Test that the computed poles have non-negative imaginary parts, or lie on the correct side of the real axis."""
     params = material_parameters
     rho = params["rho"]
@@ -400,7 +398,7 @@ def test_pole_locations(material_parameters, wave_parameters):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = wave_parameters["omega"]
+    omega = omega_value
 
     integrator = Integrator(
         rho=rho,
@@ -423,3 +421,257 @@ def test_pole_locations(material_parameters, wave_parameters):
         assert in_uhp, (
             f"Pole location incorrect for params: {params}, r^2: {r2}, omega: {omega}, selected r: {r}"
         )
+
+
+NORMX_TEST_VALUES = [
+    mp.mpf("1e-1"),
+    mp.mpf("1e0"),
+    mp.mpf("1e2"),
+    mp.mpf("1e4"),
+    mp.mpf("1e6"),
+    mp.mpf("1e8"),
+]
+
+
+@pytest.fixture(params=NORMX_TEST_VALUES)
+def norm_x_value(request):
+    return request.param
+
+
+@pytest.mark.skip("works")
+def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch):
+    r"""Test that the residue integration for I_{3,0} is consistent with numerical calculation
+
+    I_{3,0,\pm}=\frac{1}{8\pi}\int_{-\infty}^\infty \frac{1}{(\mu+\nu)r^2-\rho\omega^2+2\nu i \sqrt{\frac{\rho}{j}} c_\pm} \frac{r^3}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x})\dr
+    """
+
+    params = material_parameters
+    rho = params["rho"]
+    lam = params["lam"]
+    mu = params["mu"]
+    nu = params["nu"]
+    J = params["J"]
+    lam_c = params["lam_c"]
+    mu_c = params["mu_c"]
+    nu_c = params["nu_c"]
+
+    omega = omega_value
+
+    integrator = Integrator(
+        rho=rho,
+        lam=lam,
+        mu=mu,
+        nu=nu,
+        J=J,
+        lam_c=lam_c,
+        mu_c=mu_c,
+        nu_c=nu_c,
+        digits_precision=consts.TEST_PRECISION,
+    )
+
+    residue_result = integrator.integral_3_0(norm_x_value, omega, branch)
+
+    poles = integrator.get_poles_and_branches(omega)
+    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
+    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
+
+    # numerical integration setup over (-\infty, \infty)
+    old_dps = mp.dps
+    mp.dps = consts.COMPUTE_PRECISION  # speed up a bit
+
+    def integrand(r):
+        c_pm = integrator.dispersion_helper.c_pm(r, branch)
+        denom = (
+            (mu + nu) * r**2
+            - rho * omega**2
+            + 2 * nu * mp.mpc(0, 1) * mp.sqrt(rho / J) * c_pm
+        )
+        hankel = mp.hankel1(0, r * norm_x_value)
+        return (1 / denom) * (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+
+    numerical_result = mp.quad(integrand, [-mp.inf, mp.inf]) / (8 * mp.pi)
+
+    mp.dps = old_dps
+    assert mp.almosteq(residue_result, numerical_result, rel_eps=1e-5), (
+        f"Integral I_3,0 mismatch for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
+            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    )
+
+
+# @pytest.mark.skip
+def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch):
+    r"""Test that the residue integration for I_{3,2} is consistent with numerical calculation
+
+    I_{3,2,\pm}=\frac{1}{8\pi}\int_{-\infty}^\infty \frac{1}{(\mu+\nu)r^2-\rho\omega^2+2\nu i \sqrt{\frac{\rho}{j}} c_\pm} \frac{r^3}{r^2+\abs{c_\pm}^2}H_2^{(1)}(r\norm{x})\dr
+    """
+
+    params = material_parameters
+    rho = params["rho"]
+    lam = params["lam"]
+    mu = params["mu"]
+    nu = params["nu"]
+    J = params["J"]
+    lam_c = params["lam_c"]
+    mu_c = params["mu_c"]
+    nu_c = params["nu_c"]
+
+    omega = omega_value
+
+    integrator = Integrator(
+        rho=rho,
+        lam=lam,
+        mu=mu,
+        nu=nu,
+        J=J,
+        lam_c=lam_c,
+        mu_c=mu_c,
+        nu_c=nu_c,
+        digits_precision=consts.TEST_PRECISION,
+    )
+
+    residue_result = integrator.integral_3_2(norm_x_value, omega, branch)
+
+    poles = integrator.get_poles_and_branches(omega)
+    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
+    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
+
+    # numerical integration setup over (-\infty, \infty)
+    # old_dps = mp.dps
+    # mp.dps = consts.COMPUTE_PRECISION # speed up a bit
+
+    def integrand(r):
+        c_pm = integrator.dispersion_helper.c_pm(r, branch)
+        denom = (
+            (mu + nu) * r**2
+            - rho * omega**2
+            + 2 * nu * mp.mpc(0, 1) * mp.sqrt(rho / J) * c_pm
+        )
+        hankel = mp.hankel1(2, r * norm_x_value)
+        return (1 / denom) * (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+
+    numerical_result = mp.quad(integrand, [-mp.inf, mp.inf]) / (8 * mp.pi)
+    # mp.dps = old_dps
+    assert mp.almosteq(residue_result, numerical_result, rel_eps=1e-5), (
+        f"Integral I_3,2 mismatch for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
+            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    )
+
+
+@pytest.mark.skip("works")
+def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch):
+    r"""Test that the residue integration for I_{2,1} is consistent with numerical calculation
+
+    I_{2,1,\pm}=\frac{1}{8\pi} \sqrt{\frac{\rho}{j}} \int_{-\infty}^\infty \frac{1}{(\mu+\nu)r^2-\rho\omega^2+2\nu i \sqrt{\frac{\rho}{j}} c_\pm} \frac{r^2 c_\pm}{r^2+\abs{c_\pm}^2}H_1^{(1)}(r\norm{x})\dr
+    """
+
+    params = material_parameters
+    rho = params["rho"]
+    lam = params["lam"]
+    mu = params["mu"]
+    nu = params["nu"]
+    J = params["J"]
+    lam_c = params["lam_c"]
+    mu_c = params["mu_c"]
+    nu_c = params["nu_c"]
+
+    omega = omega_value
+
+    integrator = Integrator(
+        rho=rho,
+        lam=lam,
+        mu=mu,
+        nu=nu,
+        J=J,
+        lam_c=lam_c,
+        mu_c=mu_c,
+        nu_c=nu_c,
+        digits_precision=consts.TEST_PRECISION,
+    )
+
+    residue_result = integrator.integral_2_1(norm_x_value, omega, branch)
+
+    poles = integrator.get_poles_and_branches(omega)
+    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
+    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
+
+    # numerical integration setup over (-\infty, \infty)
+    old_dps = mp.dps
+    mp.dps = consts.COMPUTE_PRECISION  # speed up a bit
+
+    def integrand(r):
+        c_pm = integrator.dispersion_helper.c_pm(r, branch)
+        denom = (
+            (mu + nu) * r**2
+            - rho * omega**2
+            + 2 * nu * mp.mpc(0, 1) * mp.sqrt(rho / J) * c_pm
+        )
+        hankel = mp.hankel1(1, r * norm_x_value)
+        return (1 / denom) * (r**2 * c_pm / (r**2 + abs(c_pm) ** 2)) * hankel
+
+    numerical_result = (
+        mp.quad(integrand, [-mp.inf, mp.inf]) / (8 * mp.pi) * mp.sqrt(rho / J)
+    )
+    mp.dps = old_dps
+    assert mp.almosteq(residue_result, numerical_result, rel_eps=1e-5), (
+        f"Integral I_2,1 mismatch for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
+            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    )
+
+
+# @pytest.mark.skip
+def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch):
+    r"""Test that the residue integration for I_{1,0} is consistent with numerical calculation
+
+    I_{1,0,\pm}=\frac{1}{8\pi} \frac{\rho}{j}\int_{-\infty}^\infty \frac{1}{(\mu+\nu)r^2-\rho\omega^2+2\nu i \sqrt{\frac{\rho}{j}} c_\pm} \frac{r \abs{c_\pm}^2}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x})\dr
+    """
+
+    params = material_parameters
+    rho = params["rho"]
+    lam = params["lam"]
+    mu = params["mu"]
+    nu = params["nu"]
+    J = params["J"]
+    lam_c = params["lam_c"]
+    mu_c = params["mu_c"]
+    nu_c = params["nu_c"]
+
+    omega = omega_value
+
+    integrator = Integrator(
+        rho=rho,
+        lam=lam,
+        mu=mu,
+        nu=nu,
+        J=J,
+        lam_c=lam_c,
+        mu_c=mu_c,
+        nu_c=nu_c,
+        digits_precision=consts.TEST_PRECISION,
+    )
+
+    residue_result = integrator.integral_1_0(norm_x_value, omega, branch)
+
+    poles = integrator.get_poles_and_branches(omega)
+    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
+    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
+
+    # numerical integration setup over (-\infty, \infty)
+    # old_dps = mp.dps
+    # mp.dps = consts.COMPUTE_PRECISION # speed up a bit
+
+    def integrand(r):
+        c_pm = integrator.dispersion_helper.c_pm(r, branch)
+        denom = (
+            (mu + nu) * r**2
+            - rho * omega**2
+            + 2 * nu * mp.mpc(0, 1) * mp.sqrt(rho / J) * c_pm
+        )
+        hankel = mp.hankel1(0, r * norm_x_value)
+        return (1 / denom) * (r * abs(c_pm) ** 2 / (r**2 + abs(c_pm) ** 2)) * hankel
+
+    numerical_result = mp.quad(integrand, [-mp.inf, mp.inf]) / (8 * mp.pi) * (rho / J)
+    # mp.dps = old_dps
+    assert mp.almosteq(residue_result, numerical_result, rel_eps=1e-5), (
+        f"Integral I_1,0 mismatch for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
+            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    )

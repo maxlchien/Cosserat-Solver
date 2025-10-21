@@ -11,7 +11,7 @@ dependencies = ["numpy", "scipy", "mpmath", "matplotlib", "obspy"]
 
 
 [dependency-groups]
-test = ["pytest"]
+test = ["pytest", "pytest-xdist"]
 dev = [{ include-group = "test"}]
 nox = [
     "nox>=2025.5.1",
