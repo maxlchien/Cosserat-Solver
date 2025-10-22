@@ -7,7 +7,7 @@ authors = [
     { name = "maxlchien", email = "90492587+maxlchien@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = ["numpy", "scipy", "mpmath", "matplotlib", "obspy"]
+dependencies = ["numpy", "scipy", "mpmath", "pyyaml", "matplotlib", "obspy"]
 
 
 [dependency-groups]
@@ -32,7 +32,6 @@ extend-select = [
   "PIE",         # flake8-pie
   "PL",          # pylint
   "PT",          # flake8-pytest-style
-  "PTH",         # flake8-use-pathlib
   "RET",         # flake8-return
   "RUF",         # Ruff-specific
   "SIM",         # flake8-simplify
@@ -52,9 +51,11 @@ isort.required-imports = ["from __future__ import annotations"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["T20"]
+"src/cosserat_solver/fourier.py" = ["T201"]
+"src/cosserat_solver/cli.py" = ["T201"]
 
 [project.scripts]
-cosserat-solver = "cosserat_solver:main"
+cosserat-solver = "cosserat_solver.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.8.15,<0.9.0"]

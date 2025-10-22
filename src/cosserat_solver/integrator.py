@@ -134,6 +134,7 @@ class Integrator:
         Using the residue theorem, integrate the function analytic/denom over the +i0 prescription.
         """
         omega = mp.mpf(omega)
+        # TODO: catch omega==0
         poles_and_branches = self.get_poles_and_branches(omega)
 
         integral = mp.mpc(0)
@@ -269,7 +270,7 @@ class Integrator:
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
         # convert to np.ndarray complex floats
-        return mp.matrix_to_np(G_mp).astype(np.complex128)
+        return np.array(G_mp.tolist(), dtype=np.complex128)
 
     def greens_x_omega_plus(self, x, omega):
         """
@@ -304,7 +305,7 @@ class Integrator:
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
         # convert to np.ndarray complex floats
-        return mp.matrix_to_np(G_mp).astype(np.complex128)
+        return np.array(G_mp.tolist(), dtype=np.complex128)
 
     def greens_x_omega_minus(self, x, omega):
         """
@@ -333,7 +334,7 @@ class Integrator:
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
         # convert to np.ndarray complex floats
-        return mp.matrix_to_np(G_mp).astype(np.complex128)
+        return np.array(G_mp.tolist(), dtype=np.complex128)
 
     def greens_x_omega(self, x, omega):
         """
@@ -342,6 +343,9 @@ class Integrator:
         Intermediate computation is performed using mpmath precision, but result is converted to np.ndarray complex floats.
 
         """
+
+        if omega == 0:
+            return np.zeros((3, 3), dtype=np.complex128)
 
         G_P = self.greens_x_omega_P(x, omega)
         G_plus = self.greens_x_omega_plus(x, omega)
