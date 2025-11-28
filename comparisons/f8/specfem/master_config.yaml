@@ -1,0 +1,66 @@
+sim-setup:
+  nstep: 10000
+  dt: 2.5e-4
+  display-types:
+    - rotation
+    - displacement
+  display-time-interval: 1000
+  wavefield-time-interval: 100
+  nspecx: 200
+  nspecz: 200
+  Lx: 5000
+  Lz: 5000
+
+materials:
+# for now we just assume one material
+  - type: cosserat
+    properties:
+      rho: "2.70d+03"
+      kappa: "3.88d+10"
+      mu: "1.02d+10"
+      nu: "7.19d+06"
+      j: "6.24d+03"
+      lambda-c: "2.28d+10"
+      mu-c: "1.06d+10"
+      nu-c: "3.16d+06"
+
+station-sets:
+  - nrec: 4
+    xdeb: 3000
+    zdeb: 3000
+    xfin: 4000
+    zfin: 4000
+    record_at_surface_same_vertical: false
+
+cosserat-sources:
+  - type: Ricker
+    x: 2500.0
+    z: 2500.0
+    source_surf: false
+    angle: 0.0
+    f: 1.0
+    fc: 0.0
+    Ricker:
+      factor: 1e10
+      tshift: 0.0
+      f0: 8.644393603846499
+  # - type: monochrome
+  #   x: 2000.0
+  #   z: 2000.0
+  #   source_surf: false
+  #   angle: 0.0
+  #   f: 0.0
+  #   fc: 1.0
+  #   freq: 30.0
+  #   magnitude: 1.0e+10
+  #   tmin: 0.0
+  # - type: monochrome-pulse
+  #   x: 2000.0
+  #   z: 2000.0
+  #   source_surf: false
+  #   angle: 0.0
+  #   f: 0.0
+  #   fc: 1.0
+  #   freq: 20.0
+  #   magnitude: 2.0e+10
+  #   tmin: 0.0

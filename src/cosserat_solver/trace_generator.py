@@ -91,16 +91,17 @@ def generate_trace(
         Computed as G * source_spectrum, where source_spectrum is the magnitude of the source in frequency domain
         and G is the Green's function evaluated at the given frequency and location.
         """
-
+        if type(omega) is np.ndarray:
+            np_array_not_supported_msg = (
+                "omega should be a scalar value, not a numpy array"
+            )
+            raise ValueError(np_array_not_supported_msg)
         G_omega = integrator.greens_x_omega(x, omega)
 
         source_mag = source.spectrum(omega)
         return G_omega * source_mag
 
-    greens_time = fourier.itransform(frequency_domain_func, ft_params)[
-        ::-1, :, :
-    ]  # shape (N, 3, 3)
-    # need to reverse time axis due to conventions
+    times, greens_time = fourier.cont_ifft(frequency_domain_func, ft_params)
 
     # Project onto source direction
     source_dir = source.direction()  # shape (3,)
@@ -111,8 +112,6 @@ def generate_trace(
         "BXZ": np.real(trace[:, 1]),
         "BXY": np.real(trace[:, 2]),
     }
-
-    times = np.arange(ft_params.get("N")) * ft_params.get("dt")
 
     if save_to_file:
         components = [("BXX", "semd"), ("BXZ", "semd"), ("BXY", "semr")]

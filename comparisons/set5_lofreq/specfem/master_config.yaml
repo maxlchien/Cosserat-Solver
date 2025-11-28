@@ -1,0 +1,53 @@
+sim-setup:
+  nstep: 30000
+  dt: 1e-4
+  display-types:
+    - rotation
+    - displacement
+  display-time-interval: 1000
+  wavefield-time-interval: 300
+  nspecx: 500
+  nspecz: 500
+  Lx: 4000
+  Lz: 4000
+
+boundary-conditions:
+  use-stacey: true
+  absorb-bottom: true
+  absorb-right: true
+  absorb-top: true
+  absorb-left: true
+
+materials:
+# for now we just assume one material
+  - type: cosserat
+    properties:
+      rho: "2.70d+03"
+      kappa: "1.20d+09"
+      mu: "1.23d+09"
+      nu: "6.52d+07"
+      j: "1.71d+05"
+      lambda-c: "8.48d+03"
+      mu-c: "2.15d+10"
+      nu-c: "2.15d+10"
+
+station-sets:
+  - nrec: 4
+    xdeb: 2500
+    zdeb: 2500
+    xfin: 3500
+    zfin: 3500
+    record_at_surface_same_vertical: false
+
+cosserat-sources:
+  - type: Ricker
+    x: 2000.0
+    z: 2000.0
+    source_surf: false
+    angle: 0.0
+    f: 1.0
+    fc: 1.0
+    Ricker:
+      factor: 1e10
+      tshift: 0.0
+      f0: 3

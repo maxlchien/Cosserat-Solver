@@ -53,6 +53,7 @@ isort.required-imports = ["from __future__ import annotations"]
 "tests/**" = ["T20"]
 "src/cosserat_solver/fourier.py" = ["T201"]
 "src/cosserat_solver/cli.py" = ["T201"]
+"plot_seismograms.py" = ["T201"]
 
 [project.scripts]
 cosserat-solver = "cosserat_solver.cli:main"

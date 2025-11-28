@@ -498,7 +498,7 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-@pytest.mark.skip("All work except for two test cases")
+@pytest.mark.skip("All work except for one test case")
 def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,2} is consistent with numerical calculation
 
@@ -540,6 +540,7 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
     # mp.dps = consts.COMPUTE_PRECISION # speed up a bit
 
     def integrand(r):
+        r = r + mp.mpc(0, 1e-8)  # contour shift
         c_pm = integrator.dispersion_helper.c_pm(r, branch)
         denom = (
             (mu + nu) * r**2
@@ -618,7 +619,7 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-@pytest.mark.skip("All work except for one test case")
+@pytest.mark.skip("works")
 def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{1,0} is consistent with numerical calculation
 

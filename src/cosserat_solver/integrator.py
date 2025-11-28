@@ -149,7 +149,7 @@ class Integrator:
         integral *= mp.mpc(0, 2 * mp.pi)
         return integral
 
-    def _accurate_hankel1(order, z):
+    def _accurate_hankel1(order: int, z: complex) -> complex:
         r"""
         Compute the Hankel function of the first kind of given order to high accuracy for large arguments, combining
             scipy.special.hankel1e and mpmath.
@@ -172,7 +172,7 @@ class Integrator:
         def analytic(r, _, branch):
             c_pm = self.dispersion_helper.c_pm(r, branch)
             hankel = Integrator._accurate_hankel1(0, r * normx)
-            return (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+            return (r**3 / (r**2 - c_pm**2)) * hankel
 
         return self.integrate(analytic, omega, branch) / mp.mpc(8 * mp.pi)
 
@@ -186,7 +186,7 @@ class Integrator:
         def analytic(r, _, branch):
             c_pm = self.dispersion_helper.c_pm(r, branch)
             hankel = Integrator._accurate_hankel1(2, r * normx)
-            return (r**3 / (r**2 + abs(c_pm) ** 2)) * hankel
+            return (r**3 / (r**2 - c_pm**2)) * hankel
 
         return self.integrate(analytic, omega, branch) / mp.mpc(8 * mp.pi)
 
@@ -200,7 +200,8 @@ class Integrator:
         def analytic(r, _, branch):
             c_pm = self.dispersion_helper.c_pm(r, branch)
             hankel = Integrator._accurate_hankel1(1, r * normx)
-            return (r**2 * c_pm / (r**2 + abs(c_pm) ** 2)) * hankel
+            # return (r**2 * c_pm / (r**2 + abs(c_pm) ** 2)) * hankel
+            return (r**2 * c_pm / (r**2 - c_pm**2)) * hankel
 
         return (
             self.integrate(analytic, omega, branch)
@@ -211,14 +212,15 @@ class Integrator:
     def integral_1_0(self, normx, omega, branch):
         r"""
         Compute the integral
-            \frac{1}{8\pi}\frac{\rho}{j}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r\abs{c_\pm}}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x}) dr
+            \frac{1}{8\pi}\frac{\rho}{j}\int_{-\infty}^\infty \frac{1}{denom(r, omega, branch)} \frac{r\abs{c_\pm}^2}{r^2+\abs{c_\pm}^2}H_0^{(1)}(r\norm{x}) dr
         using the residue theorem. H_0^{(1)} is the Hankel function of the first kind of order 0.
         """
 
         def analytic(r, _, branch):
             c_pm = self.dispersion_helper.c_pm(r, branch)
             hankel = Integrator._accurate_hankel1(0, r * normx)
-            return (r * abs(c_pm) / (r**2 + abs(c_pm) ** 2)) * hankel
+            # return (r * abs(c_pm) / (r**2 + abs(c_pm) ** 2)) * hankel
+            return (-r * c_pm**2 / (r**2 - c_pm**2)) * hankel
 
         return (
             self.integrate(analytic, omega, branch)
