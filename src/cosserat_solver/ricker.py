@@ -40,14 +40,12 @@ class Ricker:
         complex
             The complex amplitude of the Ricker wavelet at frequency omega.
         """
-        # A(ω) = 2 * (ω / ω_c)² * exp(-(ω / ω_c)²) / √(π)
 
         return (
             self.factor
-            * 2
-            * (omega / self.omega0) ** 2
-            * np.exp(-((omega / self.omega0) ** 2))
-            / np.sqrt(np.pi)
+            * (omega**2)
+            / (2.0 * np.pi ** (5 / 2) * self.f0**3)
+            * np.exp(-(omega**2) / (4.0 * np.pi**2 * self.f0**2))
         )
 
     def direction(self) -> np.ndarray:

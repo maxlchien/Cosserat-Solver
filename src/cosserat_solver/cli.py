@@ -16,6 +16,12 @@ def main() -> None:
     parser.add_argument(
         "--yaml", type=str, required=False, help="Path to the YAML configuration file."
     )
+    parser.add_argument(
+        "--o",
+        type=str,
+        required=False,
+        help="Output directory for generated traces. Default is 'OUTPUT_FILES'.",
+    )
 
     args = parser.parse_args()
 
@@ -44,6 +50,7 @@ def main() -> None:
             source,
             ft_params,
             digits_precision,
+            output_dir=args.o if args.o else "OUTPUT_FILES",
             trace_prefix=f"AA.S{str(i + 1).zfill(4)}.S2",
             save_to_file=True,
         )
