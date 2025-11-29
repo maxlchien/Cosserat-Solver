@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import os
+
 import pytest
 from mpmath import mp
 
 import cosserat_solver.consts as consts
 from cosserat_solver.integrator import Integrator
+
+IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
+# allow for integration to get skipped except during Github Actions tests
+
 
 mp.dps = consts.TEST_PRECISION
 
@@ -438,7 +444,7 @@ def norm_x_value(request):
     return request.param
 
 
-@pytest.mark.skip("works")
+@pytest.mark.skipif(not IN_GITHUB_ACTIONS)
 def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,0} is consistent with numerical calculation
 
@@ -498,7 +504,7 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-@pytest.mark.skip("All work except for one test case")
+@pytest.mark.skipif(not IN_GITHUB_ACTIONS)
 def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,2} is consistent with numerical calculation
 
@@ -558,7 +564,7 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-@pytest.mark.skip("works")
+@pytest.mark.skipif(not IN_GITHUB_ACTIONS)
 def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{2,1} is consistent with numerical calculation
 
@@ -619,7 +625,7 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-@pytest.mark.skip("works")
+@pytest.mark.skipif(not IN_GITHUB_ACTIONS)
 def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{1,0} is consistent with numerical calculation
 
