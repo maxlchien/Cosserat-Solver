@@ -16,7 +16,7 @@ def pytest_sessionstart(session):
 
 
 @pytest.hookimpl(trylast=True)
-def pytest_sessionfinish(session, _exitstatus):
+def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
     """Record CPU time at session end"""
     cpu_time = time.process_time() - session.start_cpu_time
     worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
