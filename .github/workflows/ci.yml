@@ -36,4 +36,4 @@ jobs:
       - name: Install and test package (using nox group)
         run: |
           uv sync --group nox
-          uv run nox -s tests
+          uv run nox -s tests -- -n auto
