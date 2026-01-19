@@ -28,6 +28,7 @@ def comparisons(session: nox.Session) -> None:
         if not subfolder.is_dir():
             continue
 
+        # run solver
         params_file = subfolder / "solver" / "params.yaml"
         if params_file.exists():
             output_dir = subfolder / "solver" / "output"
@@ -42,3 +43,8 @@ def comparisons(session: nox.Session) -> None:
                 external=True,
             )
             session.run("python", "plot_seismograms.py", str(output_dir))
+
+        # run specfem (via snakemake)
+        master_config_file = subfolder / "specfem" / "master_config.yaml"
+        if master_config_file.exists():
+            ...

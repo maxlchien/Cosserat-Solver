@@ -1,0 +1,27 @@
+material_params:
+  rho: 2700
+  lam: 3.2e10
+  mu: 1.02e10
+  nu: 7.19e6
+  J: 6.24e3
+  lam_c: 2.28e10
+  mu_c: 1.06e10
+  nu_c: 3.16e6
+
+source_params:
+  type: "Ricker"
+  f0: 8.644393603846499
+  factor: 1.0e+10
+  tshift: 0.0
+  angle: 0.0
+  f: 1
+  fc: 0
+
+ft_params:
+  dt: 2.5e-4
+  N: 10000
+  oversample_rate: 8
+
+seismogram_locations:
+  - [500.0, 500.0]
+  - [1500.0, 1500.0]
