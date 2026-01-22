@@ -776,6 +776,10 @@ def main():
         except Exception as e:
             print(f"Error during comparison: {e}")
     else:
+        # TODO: get --all-stations working
+        if args.all_stations:
+            err = "--all-stations is not yet implemented."
+            raise NotImplementedError(err)
         compare_at_station_level(
             folder_path,
             args.station,
