@@ -124,14 +124,14 @@ def get_compatible_traces(time1, disp1, time2, disp2, method="cubic"):
     """
     # Find common time range
     start_time, end_time = find_common_time_range(time1, time2)
-    time1_mask = (time1 >= start_time) & (time1 <= end_time)
-    time2_mask = (time2 >= start_time) & (time2 <= end_time)
+    time1_mask = (time1 >= start_time - 1e-6) & (time1 <= end_time + 1e-6)
+    time2_mask = (time2 >= start_time - 1e-6) & (time2 <= end_time + 1e-6)
     time1_clipped = time1[time1_mask]
     time2_clipped = time2[time2_mask]
 
     # if the time grids are already the same, then don't interpolate to preserve data
     if len(time1_clipped) == len(time2_clipped) and np.all(
-        np.isclose(time1_clipped, time2_clipped)
+        np.isclose(time1_clipped, time2_clipped, rtol=1e-5, atol=1e-6)
     ):
         print("Time grids are close. Clipping data and skipping interpolation step.")
         return time1_clipped, disp1[time1_mask], disp2[time2_mask]
