@@ -60,8 +60,8 @@ isort.required-imports = ["from __future__ import annotations"]
 cosserat-solver = "cosserat_solver.cli:main"
 
 [build-system]
-requires = ["uv_build>=0.8.15,<0.9.0"]
-build-backend = "uv_build"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config"]

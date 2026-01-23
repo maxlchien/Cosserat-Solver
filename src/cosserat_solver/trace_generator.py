@@ -7,12 +7,13 @@ import numpy as np
 import cosserat_solver.consts as consts
 import cosserat_solver.fourier as fourier
 from cosserat_solver.integrator import Integrator
+from cosserat_solver.source import SourceSpectrum
 
 
 def generate_trace(
     x,
     material_params: dict,
-    source,
+    source: SourceSpectrum,
     ft_params: dict,
     digits_precision=consts.COMPUTE_PRECISION,
     output_dir="OUTPUT_FILES",
@@ -35,7 +36,7 @@ def generate_trace(
         - 'lam_c': Cosserat Lamé's first parameter
         - 'mu_c': Cosserat shear modulus
         - 'nu_c': Cosserat couple modulus
-    source: Source
+    source: SourceSpectrum
         The source object with a method `spectrum(omega)` that returns the source magnitude at frequency omega, and a method
             `direction()` that returns the source direction as a np.ndarray.
     ft_params: dict
@@ -84,6 +85,9 @@ def generate_trace(
         rho, lam, mu, nu, J, lam_c, mu_c, nu_c, digits_precision=digits_precision
     )
 
+    # for safety since we may edit this
+    ft_params = ft_params.copy()
+
     def frequency_domain_func(omega: float) -> np.ndarray:
         """
         The frequency domain function to be inverse transformed.
@@ -100,6 +104,9 @@ def generate_trace(
 
         source_mag = source.spectrum(omega)
         return G_omega * source_mag
+
+    if "t0" not in ft_params:
+        ft_params["t0"] = source.t0()
 
     times, greens_time = fourier.cont_ifft(frequency_domain_func, ft_params)
 

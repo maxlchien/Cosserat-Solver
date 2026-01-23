@@ -2,22 +2,26 @@ from __future__ import annotations
 
 import numpy as np
 
+from cosserat_solver.source import SourceSpectrum
 
-class Ricker:
+
+class Ricker(SourceSpectrum):
     """
     Ricker wavelet source time function.
 
     Parameters:
-    f0: float
-        The dominant frequency of the Ricker wavelet in Hz.
-    f: float
-        The displacement ratio.
-    fc: float
-        The rotation ratio.
-    angle: float
-        The source angle in degrees.
-    factor: float
-        A scaling factor for the amplitude.
+        f0 (float):
+            The dominant frequency of the Ricker wavelet in Hz.
+        f (float):
+            The displacement ratio.
+        fc (float):
+            The rotation ratio.
+        angle (float):
+            The source angle in degrees.
+        factor (float):
+            A scaling factor for the amplitude.
+        start_time (float):
+            The start time for the trace. Defaults to -1.2 / f0.
     """
 
     def __init__(self, ricker_params: dict):
@@ -27,6 +31,8 @@ class Ricker:
         self.rotation_ratio = ricker_params.get("fc", 1.0)
         self.angle = ricker_params.get("angle", 0.0)  # in degrees
         self.factor = ricker_params.get("factor", 1.0)
+
+        self.start_time = ricker_params.get("t0", -1.2 / self.f0)
 
     def spectrum(self, omega: float) -> complex:
         """
@@ -62,3 +68,14 @@ class Ricker:
         dir_y = self.rotation_ratio
 
         return np.array([dir_x, dir_z, dir_y])
+
+    def t0(self) -> float:
+        """
+        The time at which the seismogram trace should begin.
+
+        For the Ricker source, defaults to -1.2 / f0 unless specified otherwise.
+
+        Returns:
+            float: The start time.
+        """
+        return self.start_time
