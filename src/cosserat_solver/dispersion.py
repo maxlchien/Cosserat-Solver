@@ -45,6 +45,8 @@ class DispersionHelper:
         The coefficient C in the dispersion relation Ac_\pm^2 + Bc_\pm + C = 0
         """
         r = mp.mpc(r)
+        # print("dispersion_C debug: PYTHON")
+        # print(r, r**2, mp.sqrt(self.rho * self.J), self.nu, mp.mpc(0, 2) * self.nu, mp.mpc(0, 2) * self.nu * r**2 / mp.sqrt(self.rho * self.J))
         return mp.mpc(0, 2) * self.nu * r**2 / mp.sqrt(self.rho * self.J)
 
     def _dispersion(self, r, c):
@@ -59,6 +61,14 @@ class DispersionHelper:
         return (
             c * (A * c + B) + C
         )  # when C is small, Ac + B will be close to zero and it's better to cancel them first
+
+    def _dispersion_zero(self, r, branch):
+        r"""
+        Computes the left hand side of the dispersion relation Ac_\pm^2 + Bc_\pm + C = 0 at c_pm(r)
+        """
+        r = mp.mpc(r)
+        c_pm = self.c_pm(r, branch)
+        return self._dispersion(r, c_pm)
 
     def c_pm(self, r, branch):
         r"""
