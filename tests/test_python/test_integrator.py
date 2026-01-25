@@ -14,95 +14,95 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 
 mp.dps = consts.TEST_PRECISION
 
-# TODO: merge the test suite sets
-# --- Predefined material parameter sets ---
-MATERIAL_PARAMETER_SETS = [
-    {
-        "rho": mp.mpf("1e3"),
-        "lam": mp.mpf("1e5"),
-        "mu": mp.mpf("1e5"),
-        "nu": mp.mpf("1e4"),
-        "J": mp.mpf("1"),
-        "lam_c": mp.mpf("1e5"),
-        "mu_c": mp.mpf("1e5"),
-        "nu_c": mp.mpf("1e4"),
-    },
-    {
-        "rho": mp.mpf("1e4"),
-        "lam": mp.mpf("1e6"),
-        "mu": mp.mpf("5e6"),
-        "nu": mp.mpf("1e5"),
-        "J": mp.mpf("1e2"),
-        "lam_c": mp.mpf("2e6"),
-        "mu_c": mp.mpf("3e6"),
-        "nu_c": mp.mpf("5e5"),
-    },
-    {
-        "rho": mp.mpf("1e5"),
-        "lam": mp.mpf("1e7"),
-        "mu": mp.mpf("1e7"),
-        "nu": mp.mpf("1e6"),
-        "J": mp.mpf("1e6"),
-        "lam_c": mp.mpf("1e7"),
-        "mu_c": mp.mpf("1e7"),
-        "nu_c": mp.mpf("1e6"),
-    },
-    {
-        "rho": mp.mpf("1e6"),
-        "lam": mp.mpf("1e8"),
-        "mu": mp.mpf("5e7"),
-        "nu": mp.mpf("1e7"),
-        "J": mp.mpf("1e3"),
-        "lam_c": mp.mpf("1e8"),
-        "mu_c": mp.mpf("1e8"),
-        "nu_c": mp.mpf("1e7"),
-    },
-    {
-        "rho": mp.mpf("1e8"),
-        "lam": mp.mpf("5e5"),
-        "mu": mp.mpf("2e8"),
-        "nu": mp.mpf("3e6"),
-        "J": mp.mpf("1e4"),
-        "lam_c": mp.mpf("4e7"),
-        "mu_c": mp.mpf("6e7"),
-        "nu_c": mp.mpf("8e6"),
-    },
-]
+# # TODO: merge the test suite sets
+# # --- Predefined material parameter sets ---
+# MATERIAL_PARAMETER_SETS = [
+#     {
+#         "rho": mp.mpf("1e3"),
+#         "lam": mp.mpf("1e5"),
+#         "mu": mp.mpf("1e5"),
+#         "nu": mp.mpf("1e4"),
+#         "J": mp.mpf("1"),
+#         "lam_c": mp.mpf("1e5"),
+#         "mu_c": mp.mpf("1e5"),
+#         "nu_c": mp.mpf("1e4"),
+#     },
+#     {
+#         "rho": mp.mpf("1e4"),
+#         "lam": mp.mpf("1e6"),
+#         "mu": mp.mpf("5e6"),
+#         "nu": mp.mpf("1e5"),
+#         "J": mp.mpf("1e2"),
+#         "lam_c": mp.mpf("2e6"),
+#         "mu_c": mp.mpf("3e6"),
+#         "nu_c": mp.mpf("5e5"),
+#     },
+#     {
+#         "rho": mp.mpf("1e5"),
+#         "lam": mp.mpf("1e7"),
+#         "mu": mp.mpf("1e7"),
+#         "nu": mp.mpf("1e6"),
+#         "J": mp.mpf("1e6"),
+#         "lam_c": mp.mpf("1e7"),
+#         "mu_c": mp.mpf("1e7"),
+#         "nu_c": mp.mpf("1e6"),
+#     },
+#     {
+#         "rho": mp.mpf("1e6"),
+#         "lam": mp.mpf("1e8"),
+#         "mu": mp.mpf("5e7"),
+#         "nu": mp.mpf("1e7"),
+#         "J": mp.mpf("1e3"),
+#         "lam_c": mp.mpf("1e8"),
+#         "mu_c": mp.mpf("1e8"),
+#         "nu_c": mp.mpf("1e7"),
+#     },
+#     {
+#         "rho": mp.mpf("1e8"),
+#         "lam": mp.mpf("5e5"),
+#         "mu": mp.mpf("2e8"),
+#         "nu": mp.mpf("3e6"),
+#         "J": mp.mpf("1e4"),
+#         "lam_c": mp.mpf("4e7"),
+#         "mu_c": mp.mpf("6e7"),
+#         "nu_c": mp.mpf("8e6"),
+#     },
+# ]
 
-# --- Define k and omega ranges ---
-K_VALUES = [
-    mp.mpf("1e-1"),
-    mp.mpf("1.0"),
-    mp.mpf("10.0"),
-    mp.mpf("100.0"),
-    mp.mpf("1000.0"),
-]
-
-
-@pytest.fixture(params=K_VALUES)
-def k_value(request):
-    return request.param
+# # --- Define k and omega ranges ---
+# K_VALUES = [
+#     mp.mpf("1e-1"),
+#     mp.mpf("1.0"),
+#     mp.mpf("10.0"),
+#     mp.mpf("100.0"),
+#     mp.mpf("1000.0"),
+# ]
 
 
-OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+# @pytest.fixture(params=K_VALUES)
+# def k_value(request):
+#     return request.param
 
 
-@pytest.fixture(params=OMEGA_VALUES)
-def omega_value(request):
-    return request.param
+# OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
 
 
-# --- Fixture for material parameters ---
-@pytest.fixture(params=MATERIAL_PARAMETER_SETS)
-def material_parameters(request):
-    """Fixture providing predefined sets of material parameters."""
-    return request.param
+# @pytest.fixture(params=OMEGA_VALUES)
+# def omega_value(request):
+#     return request.param
 
 
-@pytest.fixture(params=[consts.PLUS_BRANCH, -consts.PLUS_BRANCH])
-def branch(request):
-    """Fixture providing the branch of the dispersion relation."""
-    return request.param
+# # --- Fixture for material parameters ---
+# @pytest.fixture(params=MATERIAL_PARAMETER_SETS)
+# def material_parameters(request):
+#     """Fixture providing predefined sets of material parameters."""
+#     return request.param
+
+
+# @pytest.fixture(params=[consts.PLUS_BRANCH, -consts.PLUS_BRANCH])
+# def branch(request):
+#     """Fixture providing the branch of the dispersion relation."""
+#     return request.param
 
 
 def test_denom_prime(material_parameters, k_value, omega_value, branch):

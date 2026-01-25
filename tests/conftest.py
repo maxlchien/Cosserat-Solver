@@ -108,7 +108,19 @@ K_VALUES = [
     mp.mpf("100.0"),
     mp.mpf("1000.0"),
 ]
+
+
+@pytest.fixture(params=K_VALUES, scope="session")
+def k_value(request):
+    return request.param
+
+
 OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+
+
+@pytest.fixture(params=OMEGA_VALUES, scope="session")
+def omega_value(request):
+    return request.param
 
 
 # --- Fixture for material parameters ---
