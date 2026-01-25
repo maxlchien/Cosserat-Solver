@@ -9,12 +9,21 @@ except ImportError:
 
 import numpy as np
 
+# Module-level lock flag. This exists because the Fortran module takes state variables directly.
+# This is preferred at the Fortran level to avoid passing instances of objects from Fortran to Python.
+_FORTRAN_INSTANCE_EXISTS = False
+
 
 class DispersionHelperFortran:
     def __init__(self, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, digits_precision=30):  # noqa: ARG002
         if not HAS_FORTRAN:
             err = "Fortran module not available."
             raise RuntimeError(err)
+        global _FORTRAN_INSTANCE_EXISTS  # noqa: PLW0603
+        if _FORTRAN_INSTANCE_EXISTS:
+            err = "Only one instance of DispersionHelperFortran can exist at a time."
+            raise RuntimeError(err)
+        _FORTRAN_INSTANCE_EXISTS = True
         self.rho = float(rho)
         self.lam = float(lam)
         self.mu = float(mu)
@@ -33,6 +42,10 @@ class DispersionHelperFortran:
             self.mu_c,
             self.nu_c,
         )
+
+    def __del__(self):
+        global _FORTRAN_INSTANCE_EXISTS  # noqa: PLW0603
+        _FORTRAN_INSTANCE_EXISTS = False
 
     def c_pm(self, r: complex, branch: int) -> complex:
         real = float(np.real(r))
