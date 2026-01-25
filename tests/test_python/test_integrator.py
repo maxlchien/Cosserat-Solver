@@ -444,10 +444,10 @@ def norm_x_value(request):
     return request.param
 
 
-# @pytest.mark.skipif(
-#     not IN_GITHUB_ACTIONS,
-#     reason="Skipping integrator tests outside GitHub Actions for efficiency",
-# )
+@pytest.mark.skipif(
+    not IN_GITHUB_ACTIONS,
+    reason="Skipping integrator tests outside GitHub Actions for efficiency",
+)
 def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,0} is consistent with numerical calculation
 
@@ -508,10 +508,10 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-# @pytest.mark.skipif(
-#     not IN_GITHUB_ACTIONS,
-#     reason="Skipping integrator tests outside GitHub Actions for efficiency",
-# )
+@pytest.mark.skipif(
+    not IN_GITHUB_ACTIONS,
+    reason="Skipping integrator tests outside GitHub Actions for efficiency",
+)
 def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,2} is consistent with numerical calculation
 
@@ -571,10 +571,10 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-# @pytest.mark.skipif(
-#     not IN_GITHUB_ACTIONS,
-#     reason="Skipping integrator tests outside GitHub Actions for efficiency",
-# )
+@pytest.mark.skipif(
+    not IN_GITHUB_ACTIONS,
+    reason="Skipping integrator tests outside GitHub Actions for efficiency",
+)
 def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{2,1} is consistent with numerical calculation
 
@@ -636,10 +636,10 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
     )
 
 
-# @pytest.mark.skipif(
-#     not IN_GITHUB_ACTIONS,
-#     reason="Skipping integrator tests outside GitHub Actions for efficiency",
-# )
+@pytest.mark.skipif(
+    not IN_GITHUB_ACTIONS,
+    reason="Skipping integrator tests outside GitHub Actions for efficiency",
+)
 def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{1,0} is consistent with numerical calculation
 
