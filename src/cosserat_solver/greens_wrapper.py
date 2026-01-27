@@ -178,8 +178,8 @@ def get_greens_callback(
 
     Notes
     -----
-    The Fortran backend is significantly faster but uses double precision.
-    The Python backend supports arbitrary precision but is much slower.
+    The Fortran backend is significantly faster.
+    The Python backend is much slower.
     """
     _validate_material_params(material_params)
 
