@@ -9,21 +9,12 @@ except ImportError:
 
 import numpy as np
 
-# Module-level lock flag. This exists because the Fortran module takes state variables directly.
-# This is preferred at the Fortran level to avoid passing instances of objects from Fortran to Python.
-_FORTRAN_INSTANCE_EXISTS = False
-
 
 class DispersionHelperFortran:
     def __init__(self, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, digits_precision=30):  # noqa: ARG002
         if not HAS_FORTRAN:
             err = "Fortran module not available."
             raise RuntimeError(err)
-        global _FORTRAN_INSTANCE_EXISTS  # noqa: PLW0603
-        if _FORTRAN_INSTANCE_EXISTS:
-            err = "Only one instance of DispersionHelperFortran can exist at a time."
-            raise RuntimeError(err)
-        _FORTRAN_INSTANCE_EXISTS = True
         self.rho = float(rho)
         self.lam = float(lam)
         self.mu = float(mu)
@@ -32,54 +23,50 @@ class DispersionHelperFortran:
         self.lam_c = float(lam_c)
         self.mu_c = float(mu_c)
         self.nu_c = float(nu_c)
-        dispersion_core.init_dispersion(
-            self.rho,
-            self.lam,
-            self.mu,
-            self.nu,
-            self.J,
-            self.lam_c,
-            self.mu_c,
-            self.nu_c,
-        )
-
-    def __del__(self):
-        global _FORTRAN_INSTANCE_EXISTS  # noqa: PLW0603
-        _FORTRAN_INSTANCE_EXISTS = False
 
     def c_pm(self, r: complex, branch: int) -> complex:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core.c_pm(real, imag, branch)
+        result_real, result_imag = dispersion_core.c_pm(
+            real, imag, branch, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
+        )
         return complex(result_real, result_imag)
 
     def c_pm_prime(self, r: complex, branch: int) -> complex:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core.c_pm_prime(real, imag, branch)
+        result_real, result_imag = dispersion_core.c_pm_prime(
+            real, imag, branch, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
+        )
         return complex(result_real, result_imag)
 
     def _dispersion_A(self, r: complex) -> complex:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core.dispersion_A(real, imag)
+        result_real, result_imag = dispersion_core.dispersion_A(
+            real, imag, self.rho, self.nu, self.J
+        )
         return complex(result_real, result_imag)
 
     def _dispersion_B(self, r: complex) -> complex:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core.dispersion_B(real, imag)
+        result_real, result_imag = dispersion_core.dispersion_B(
+            real, imag, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
+        )
         return complex(result_real, result_imag)
 
     def _dispersion_C(self, r: complex) -> complex:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core.dispersion_C(real, imag)
+        result_real, result_imag = dispersion_core.dispersion_C(
+            real, imag, self.rho, self.nu, self.J
+        )
         return complex(result_real, result_imag)
 
     def _dispersion(self, r: complex, c: complex) -> complex:
@@ -88,7 +75,16 @@ class DispersionHelperFortran:
         c_real = float(np.real(c))
         c_imag = float(np.imag(c))
         result_real, result_imag = dispersion_core.dispersion(
-            r_real, r_imag, c_real, c_imag
+            r_real,
+            r_imag,
+            c_real,
+            c_imag,
+            self.rho,
+            self.mu,
+            self.nu,
+            self.J,
+            self.mu_c,
+            self.nu_c,
         )
         return complex(result_real, result_imag)
 
@@ -96,6 +92,14 @@ class DispersionHelperFortran:
         r_real = float(np.real(r))
         r_imag = float(np.imag(r))
         result_real, result_imag = dispersion_core.dispersion_zero(
-            r_real, r_imag, branch
+            r_real,
+            r_imag,
+            branch,
+            self.rho,
+            self.mu,
+            self.nu,
+            self.J,
+            self.mu_c,
+            self.nu_c,
         )
         return complex(result_real, result_imag)

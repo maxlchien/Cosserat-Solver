@@ -2,50 +2,43 @@
 #include <Python.h>
 
 // Fortran function declarations
-void init_dispersion_wrapper(double rho, double lam, double mu, double nu,
-                              double J, double lam_c, double mu_c, double nu_c);
 void c_pm_wrapper(double r_real, double r_imag, int branch,
+                  double rho, double mu, double nu, double J, double mu_c, double nu_c,
                   double* result_real, double* result_imag);
 void c_pm_prime_wrapper(double r_real, double r_imag, int branch,
+                        double rho, double mu, double nu, double J, double mu_c, double nu_c,
                         double* result_real, double* result_imag);
 void dispersion_A_wrapper(double r_real, double r_imag,
+                          double rho, double nu, double J,
                           double* result_real, double* result_imag);
 void dispersion_B_wrapper(double r_real, double r_imag,
+                          double rho, double mu, double nu, double J, double mu_c, double nu_c,
                           double* result_real, double* result_imag);
 void dispersion_C_wrapper(double r_real, double r_imag,
+                          double rho, double nu, double J,
                           double* result_real, double* result_imag);
 void dispersion_wrapper(double r_real, double r_imag,
                         double c_real, double c_imag,
-                          double* result_real, double* result_imag);
+                        double rho, double mu, double nu, double J, double mu_c, double nu_c,
+                        double* result_real, double* result_imag);
 void dispersion_zero_wrapper(double r_real, double r_imag,
                         int branch,
-                          double* result_real, double* result_imag);
-
-// Python wrapper for init_dispersion
-static PyObject* py_init_dispersion(PyObject* self, PyObject* args) {
-    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
-
-    if (!PyArg_ParseTuple(args, "dddddddd", &rho, &lam, &mu, &nu,
-                          &J, &lam_c, &mu_c, &nu_c)) {
-        return NULL;
-    }
-
-    init_dispersion_wrapper(rho, lam, mu, nu, J, lam_c, mu_c, nu_c);
-
-    Py_RETURN_NONE;
-}
+                        double rho, double mu, double nu, double J, double mu_c, double nu_c,
+                        double* result_real, double* result_imag);
 
 // Python wrapper for c_pm
 static PyObject* py_c_pm(PyObject* self, PyObject* args) {
     double r_real, r_imag;
     int branch;
+    double rho, mu, nu, J, mu_c, nu_c;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "ddi", &r_real, &r_imag, &branch)) {
+    if (!PyArg_ParseTuple(args, "ddidddddd", &r_real, &r_imag, &branch,
+                          &rho, &mu, &nu, &J, &mu_c, &nu_c)) {
         return NULL;
     }
 
-    c_pm_wrapper(r_real, r_imag, branch, &result_real, &result_imag);
+    c_pm_wrapper(r_real, r_imag, branch, rho, mu, nu, J, mu_c, nu_c, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
@@ -54,52 +47,57 @@ static PyObject* py_c_pm(PyObject* self, PyObject* args) {
 static PyObject* py_c_pm_prime(PyObject* self, PyObject* args) {
     double r_real, r_imag;
     int branch;
+    double rho, mu, nu, J, mu_c, nu_c;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "ddi", &r_real, &r_imag, &branch)) {
+    if (!PyArg_ParseTuple(args, "ddidddddd", &r_real, &r_imag, &branch,
+                          &rho, &mu, &nu, &J, &mu_c, &nu_c)) {
         return NULL;
     }
 
-    c_pm_prime_wrapper(r_real, r_imag, branch, &result_real, &result_imag);
+    c_pm_prime_wrapper(r_real, r_imag, branch, rho, mu, nu, J, mu_c, nu_c, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
 
 static PyObject* py_dispersion_A(PyObject* self, PyObject* args) {
     double r_real, r_imag;
+    double rho, nu, J;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "dd", &r_real, &r_imag)) {
+    if (!PyArg_ParseTuple(args, "ddddd", &r_real, &r_imag, &rho, &nu, &J)) {
         return NULL;
     }
 
-    dispersion_A_wrapper(r_real, r_imag, &result_real, &result_imag);
+    dispersion_A_wrapper(r_real, r_imag, rho, nu, J, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
 
 static PyObject* py_dispersion_B(PyObject* self, PyObject* args) {
     double r_real, r_imag;
+    double rho, mu, nu, J, mu_c, nu_c;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "dd", &r_real, &r_imag)) {
+    if (!PyArg_ParseTuple(args, "dddddddd", &r_real, &r_imag, &rho, &mu, &nu, &J, &mu_c, &nu_c)) {
         return NULL;
     }
 
-    dispersion_B_wrapper(r_real, r_imag, &result_real, &result_imag);
+    dispersion_B_wrapper(r_real, r_imag, rho, mu, nu, J, mu_c, nu_c, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
 
 static PyObject* py_dispersion_C(PyObject* self, PyObject* args) {
     double r_real, r_imag;
+    double rho, nu, J;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "dd", &r_real, &r_imag)) {
+    if (!PyArg_ParseTuple(args, "ddddd", &r_real, &r_imag, &rho, &nu, &J)) {
         return NULL;
     }
 
-    dispersion_C_wrapper(r_real, r_imag, &result_real, &result_imag);
+    dispersion_C_wrapper(r_real, r_imag, rho, nu, J, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
@@ -107,13 +105,15 @@ static PyObject* py_dispersion_C(PyObject* self, PyObject* args) {
 static PyObject* py_dispersion(PyObject* self, PyObject* args) {
     double r_real, r_imag;
     double c_real, c_imag;
+    double rho, mu, nu, J, mu_c, nu_c;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "dddd", &r_real, &r_imag, &c_real, &c_imag)) {
+    if (!PyArg_ParseTuple(args, "dddddddddd", &r_real, &r_imag, &c_real, &c_imag,
+                          &rho, &mu, &nu, &J, &mu_c, &nu_c)) {
         return NULL;
     }
 
-    dispersion_wrapper(r_real, r_imag, c_real, c_imag, &result_real, &result_imag);
+    dispersion_wrapper(r_real, r_imag, c_real, c_imag, rho, mu, nu, J, mu_c, nu_c, &result_real, &result_imag);
 
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
@@ -121,21 +121,21 @@ static PyObject* py_dispersion(PyObject* self, PyObject* args) {
 static PyObject* py_dispersion_zero(PyObject* self, PyObject* args) {
     double r_real, r_imag;
     int branch;
+    double rho, mu, nu, J, mu_c, nu_c;
     double result_real, result_imag;
 
-    if (!PyArg_ParseTuple(args, "ddi", &r_real, &r_imag, &branch)) {
+    if (!PyArg_ParseTuple(args, "ddidddddd", &r_real, &r_imag, &branch,
+                          &rho, &mu, &nu, &J, &mu_c, &nu_c)) {
         return NULL;
     }
 
-    dispersion_zero_wrapper(r_real, r_imag, branch, &result_real, &result_imag);
+    dispersion_zero_wrapper(r_real, r_imag, branch, rho, mu, nu, J, mu_c, nu_c, &result_real, &result_imag);
     return Py_BuildValue("(dd)", result_real, result_imag);
 }
 
 
 
 static PyMethodDef DispersionMethods[] = {
-    {"init_dispersion", py_init_dispersion, METH_VARARGS,
-     "Initialize material parameters"},
     {"c_pm", py_c_pm, METH_VARARGS,
      "Compute c_pm dispersion relation"},
     {"c_pm_prime", py_c_pm_prime, METH_VARARGS,

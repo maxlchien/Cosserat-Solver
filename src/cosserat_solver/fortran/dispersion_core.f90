@@ -4,9 +4,7 @@ module dispersion_core
   implicit none
   private
   public :: dispersion_A, dispersion_B, dispersion_C, dispersion, dispersion_zero
-  public :: init_dispersion, c_pm, c_pm_prime
-  !--- Parameters ---
-  real(rk) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+  public :: c_pm, c_pm_prime
 
 contains
 
@@ -24,33 +22,19 @@ contains
   end subroutine print_kind_info
 
   !---------------------------------------------
-  ! Initialize the material parameters
-  !---------------------------------------------
-  subroutine init_dispersion(rho_in, lam_in, mu_in, nu_in, J_in, lam_c_in, mu_c_in, nu_c_in)
-    real(rk), intent(in) :: rho_in, lam_in, mu_in, nu_in, J_in, lam_c_in, mu_c_in, nu_c_in
-    ! call print_kind_info() ! Uncomment for debugging kind info
-    rho = rho_in
-    lam = lam_in
-    mu  = mu_in
-    nu  = nu_in
-    J   = J_in
-    lam_c = lam_c_in
-    mu_c  = mu_c_in
-    nu_c  = nu_c_in
-  end subroutine init_dispersion
-
-  !---------------------------------------------
   ! Dispersion coefficients
   !---------------------------------------------
-  function dispersion_A(r) result(A)
+  function dispersion_A(r, rho, nu, J) result(A)
     complex(rk), intent(in) :: r
+    real(rk), intent(in) :: rho, nu, J
     complex(rk) :: A
 
     A = (0.0_rk, 2.0_rk) * nu / sqrt(rho * J)
   end function dispersion_A
 
-  function dispersion_B(r) result(B)
+  function dispersion_B(r, rho, mu, nu, J, mu_c, nu_c) result(B)
     complex(rk), intent(in) :: r
+    real(rk), intent(in) :: rho, mu, nu, J, mu_c, nu_c
     complex(rk) :: B
     real(rk) :: diff
 
@@ -58,8 +42,9 @@ contains
     B = r**2 * diff - 4.0_rk * nu / J
   end function dispersion_B
 
-  function dispersion_C(r) result(C)
+  function dispersion_C(r, rho, nu, J) result(C)
     complex(rk), intent(in) :: r
+    real(rk), intent(in) :: rho, nu, J
     complex(rk) :: C
 
     C = (0.0_rk, 2.0_rk) * nu * r**2 / sqrt(rho * J)
@@ -71,47 +56,50 @@ contains
   ! Dispersion relation left-hand side
   !---------------------------------------------
 
-  function dispersion(r, c) result(lhs)
+  function dispersion(r, c, rho, mu, nu, J, mu_c, nu_c) result(lhs)
     complex(rk), intent(in) :: r, c
+    real(rk), intent(in) :: rho, mu, nu, J, mu_c, nu_c
     complex(rk) :: lhs
     complex(rk), volatile :: nonconstant
     complex(rk) :: A, B, C_coeff
 
-    A = dispersion_A(r)
-    B = dispersion_B(r)
-    C_coeff = dispersion_C(r)
+    A = dispersion_A(r, rho, nu, J)
+    B = dispersion_B(r, rho, mu, nu, J, mu_c, nu_c)
+    C_coeff = dispersion_C(r, rho, nu, J)
 
     nonconstant = A * c + B
     lhs = c * nonconstant + C_coeff
   end function dispersion
 
-  function dispersion_zero(r, branch) result(lhs)
+  function dispersion_zero(r, branch, rho, mu, nu, J, mu_c, nu_c) result(lhs)
     complex(rk), intent(in) :: r
     integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, mu, nu, J, mu_c, nu_c
     complex(rk) :: lhs
     complex(rk), volatile :: nonconstant
     complex(rk) :: c
 
-    c = c_pm(r, branch)
+    c = c_pm(r, branch, rho, mu, nu, J, mu_c, nu_c)
 
-    nonconstant = dispersion_A(r) * c + dispersion_B(r)
-    lhs = c * nonconstant + dispersion_C(r)
+    nonconstant = dispersion_A(r, rho, nu, J) * c + dispersion_B(r, rho, mu, nu, J, mu_c, nu_c)
+    lhs = c * nonconstant + dispersion_C(r, rho, nu, J)
   end function dispersion_zero
 
   !---------------------------------------------
   ! Solve for c_pm
   !---------------------------------------------
-function c_pm(r, branch) result(c)
+function c_pm(r, branch, rho, mu, nu, J, mu_c, nu_c) result(c)
   complex(rk), intent(in) :: r
   integer, intent(in) :: branch
+  real(rk), intent(in) :: rho, mu, nu, J, mu_c, nu_c
   complex(rk) :: c
   complex(rk) :: A, B, C_coeff, sqrt_term, noncancelling
   real(rk) :: B_re
 
   ! compute coefficients
-  A = dispersion_A(r)
-  B = dispersion_B(r)
-  C_coeff = dispersion_C(r)
+  A = dispersion_A(r, rho, nu, J)
+  B = dispersion_B(r, rho, mu, nu, J, mu_c, nu_c)
+  C_coeff = dispersion_C(r, rho, nu, J)
 
   ! get real part of B
   B_re = real(B)
@@ -147,15 +135,16 @@ end function c_pm
   !---------------------------------------------
   ! Implicit derivative c_pm'
   !---------------------------------------------
-  function c_pm_prime(r, branch) result(dcdk)
+  function c_pm_prime(r, branch, rho, mu, nu, J, mu_c, nu_c) result(dcdk)
     complex(rk), intent(in) :: r
     integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, mu, nu, J, mu_c, nu_c
     complex(rk) :: dcdk
     complex(rk) :: cp
     real(rk) :: diff
     complex(rk) :: num, denom
 
-    cp = c_pm(r, branch)
+    cp = c_pm(r, branch, rho, mu, nu, J, mu_c, nu_c)
     diff = (mu + nu)/rho - (mu_c + nu_c)/J
 
     num = -2.0_rk * cp * r * diff - (0.0_rk,4.0_rk) * nu * r / sqrt(rho * J)

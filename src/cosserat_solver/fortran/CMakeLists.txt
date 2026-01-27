@@ -37,11 +37,9 @@ list(TRANSFORM AMOS_SOURCES PREPEND "${CMAKE_CURRENT_SOURCE_DIR}/amos/")
 
 add_library(amos STATIC ${AMOS_SOURCES})
 
-target_compile_options(amos PRIVATE
-  -fdefault-real-8
-  -fdefault-double-8
-)
-
+# DO NOT apply -fdefault-real-8 to AMOS library!
+# AMOS is F77 code that expects standard double precision
+# and uses machine constants that break with promotion flags
 set_target_properties(amos PROPERTIES
   POSITION_INDEPENDENT_CODE ON
 )

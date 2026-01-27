@@ -147,3 +147,20 @@ def wave_parameters(request):
 def branch(request):
     """Fixture providing the branch of the dispersion relation."""
     return request.param
+
+
+# --- Fixture for norm_x values (for integration tests) ---
+NORM_X_VALUES = [
+    mp.mpf("1e-1"),
+    mp.mpf("1e0"),
+    mp.mpf("1e2"),
+    mp.mpf("1e4"),
+    mp.mpf("1e6"),
+    mp.mpf("1e8"),
+]
+
+
+@pytest.fixture(params=NORM_X_VALUES, scope="session")
+def norm_x_value(request):
+    """Fixture providing values for x-coordinate norm in integration tests."""
+    return request.param

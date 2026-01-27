@@ -22,11 +22,11 @@ cunk1.f
 cunk2.f
 cuoik.f
 cwrsk.f
-d1mach.f
+d1mach_modern.f
 dgamln.f
 gamln.f
-i1mach.f
-r1mach.f
+i1mach_modern.f
+r1mach_modern.f
 xerror.f
 zabs.f
 zacai.f
