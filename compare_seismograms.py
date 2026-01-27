@@ -738,6 +738,7 @@ def main():
             print_metrics(metrics)
         except Exception as e:
             print(f"Error during comparison: {e}")
+        return
 
     ### AUTOMATIC TRACE SELECTION
     if not args.folder:

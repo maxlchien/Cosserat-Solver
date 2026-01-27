@@ -208,3 +208,129 @@ class IntegratorFortran:
             self.nu_c,
         )
         return re + 1j * im
+
+    # ------------------------------------------------------------
+    # Green's functions
+    # ------------------------------------------------------------
+
+    def greens_x_omega_P(self, x: tuple | list, omega: complex) -> tuple:
+        """
+        Compute the Green's function G(x, omega) for the P branch.
+
+        Parameters
+        ----------
+        x : tuple | list
+            2D position vector [x1, x2]
+        omega : complex
+            Angular frequency
+
+        Returns
+        -------
+        tuple
+            3x3 matrix as tuple of tuples, each element is a complex number
+        """
+        return integrator_core.greens_x_omega_P_c(
+            x,
+            omega.real,
+            omega.imag,
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+
+    def greens_x_omega_plus(self, x: tuple | list, omega: complex) -> tuple:
+        """
+        Compute the Green's function G(x, omega) for the + branch.
+
+        Parameters
+        ----------
+        x : tuple | list
+            2D position vector [x1, x2]
+        omega : complex
+            Angular frequency
+
+        Returns
+        -------
+        tuple
+            3x3 matrix as tuple of tuples, each element is a complex number
+        """
+        return integrator_core.greens_x_omega_plus_c(
+            x,
+            omega.real,
+            omega.imag,
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+
+    def greens_x_omega_minus(self, x: tuple | list, omega: complex) -> tuple:
+        """
+        Compute the Green's function G(x, omega) for the - branch.
+
+        Parameters
+        ----------
+        x : tuple | list
+            2D position vector [x1, x2]
+        omega : complex
+            Angular frequency
+
+        Returns
+        -------
+        tuple
+            3x3 matrix as tuple of tuples, each element is a complex number
+        """
+        return integrator_core.greens_x_omega_minus_c(
+            x,
+            omega.real,
+            omega.imag,
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+
+    def greens_x_omega(self, x: tuple | list, omega: complex) -> tuple:
+        """
+        Compute the Green's function G(x, omega) for all branches.
+
+        This combines the P, +, and - branch contributions.
+
+        Parameters
+        ----------
+        x : tuple | list
+            2D position vector [x1, x2]
+        omega : complex
+            Angular frequency
+
+        Returns
+        -------
+        tuple
+            3x3 matrix as tuple of tuples, each element is a complex number
+        """
+        return integrator_core.greens_x_omega_c(
+            x,
+            omega.real,
+            omega.imag,
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
