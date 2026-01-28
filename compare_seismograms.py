@@ -435,6 +435,51 @@ def run_individual_comparison_on_folder(
     )
 
 
+def find_shared_stations(folder):
+    """
+    Scan folder structure to find all stations that have data in both solver and specfem outputs.
+
+    Args:
+        folder (str): The folder to scan. Needs to contain a `solver` and `specfem` folder.
+
+    Returns:
+        list: Sorted list of station numbers (as integers) that are present in both solver and specfem.
+    """
+    base_path = Path(folder)
+    solver_output = base_path / "solver" / "output"
+    specfem_output = base_path / "specfem" / "output"
+
+    if not solver_output.exists() or not specfem_output.exists():
+        err = f"Missing output directories. Solver: {solver_output.exists()}, Specfem: {specfem_output.exists()}"
+        raise ValueError(err)
+
+    # Extract station numbers from solver files
+    solver_stations = set()
+    for file in solver_output.glob("AA.S*.S2.*"):
+        # Extract station number from filename like AA.S0001.S2.BXX.semd
+        parts = file.name.split(".")
+        if len(parts) >= 3 and parts[1].startswith("S"):
+            try:
+                station_num = int(parts[1][1:])  # Remove 'S' prefix and convert to int
+                solver_stations.add(station_num)
+            except ValueError:
+                continue
+
+    # Extract station numbers from specfem files
+    specfem_stations = set()
+    for file in specfem_output.glob("AA.S*.S2.*"):
+        parts = file.name.split(".")
+        if len(parts) >= 3 and parts[1].startswith("S"):
+            try:
+                station_num = int(parts[1][1:])
+                specfem_stations.add(station_num)
+            except ValueError:
+                continue
+
+    # Find intersection
+    return sorted(solver_stations.intersection(specfem_stations))
+
+
 def compare_at_station_level(
     folder: str,
     station_num: int,
@@ -777,18 +822,55 @@ def main():
         except Exception as e:
             print(f"Error during comparison: {e}")
     else:
-        # TODO: get --all-stations working
+        # all stations or single station comparison
         if args.all_stations:
-            err = "--all-stations is not yet implemented."
-            raise NotImplementedError(err)
-        compare_at_station_level(
-            folder_path,
-            args.station,
-            args.method,
-            args.plot,
-            args.spectrum,
-            output=args.output,
-        )
+            # Find all shared stations
+            try:
+                shared_stations = find_shared_stations(folder_path)
+                if not shared_stations:
+                    print(
+                        f"No shared stations found between solver and specfem in {folder_path}"
+                    )
+                    return
+
+                print(
+                    f"Found {len(shared_stations)} shared station(s): {shared_stations}"
+                )
+                print("=" * 50)
+
+                # Run comparison for each station
+                for station_num in shared_stations:
+                    print(f"\n{'=' * 50}")
+                    print(f"Processing station {station_num}")
+                    print(f"{'=' * 50}")
+                    try:
+                        compare_at_station_level(
+                            folder_path,
+                            station_num,
+                            args.method,
+                            args.plot,
+                            args.spectrum,
+                            output=None,  # Let each station use default output name
+                        )
+                    except Exception as e:
+                        print(f"Error processing station {station_num}: {e}")
+                        continue
+
+                print(f"\n{'=' * 50}")
+                print(f"Completed comparison for all {len(shared_stations)} station(s)")
+                print(f"{'=' * 50}")
+
+            except Exception as e:
+                print(f"Error during all-stations comparison: {e}")
+        else:
+            compare_at_station_level(
+                folder_path,
+                args.station,
+                args.method,
+                args.plot,
+                args.spectrum,
+                output=args.output,
+            )
         # whole comparison
 
 

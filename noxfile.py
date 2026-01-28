@@ -24,6 +24,8 @@ def comparisons(session: nox.Session) -> None:
     """
     Run the comparisons.
     """
+    session.install("--no-build-isolation", "--force-reinstall", "-e", ".")
+
     comparisons_dir = pathlib.Path("comparisons")
 
     for subfolder in comparisons_dir.iterdir():
@@ -50,3 +52,16 @@ def comparisons(session: nox.Session) -> None:
         master_config_file = subfolder / "specfem" / "master_config.yaml"
         if master_config_file.exists():
             ...
+
+        # run comparison plot
+        folder_name = subfolder.name  # strip the comparisons/ part
+        session.run(
+            "uv",
+            "run",
+            "compare_seismograms.py",
+            "--folder",
+            folder_name,
+            "--plot",
+            "--all-stations",
+            external=True,
+        )

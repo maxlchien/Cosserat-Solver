@@ -20,8 +20,10 @@ source_params:
 ft_params:
   dt: 0.003
   N: 1000
-  oversample_rate: 8
+  oversample_rate: 40
 
 seismogram_locations:
   - [500.0, 500.0]
   - [833.3, 833.3]
+  - [1166.7, 1166.7]
+  - [1500.0, 1500.0]
