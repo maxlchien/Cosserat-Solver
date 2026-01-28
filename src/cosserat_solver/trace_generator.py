@@ -6,7 +6,7 @@ import numpy as np
 
 import cosserat_solver.consts as consts
 import cosserat_solver.fourier as fourier
-from cosserat_solver.integrator import Integrator
+from cosserat_solver.greens_wrapper import get_greens_callback
 from cosserat_solver.source import SourceSpectrum
 
 
@@ -19,6 +19,7 @@ def generate_trace(
     output_dir="OUTPUT_FILES",
     trace_prefix="AA.S0001.S2",
     save_to_file=False,
+    use_fortran=True,
 ):
     """
     Generate a time-domain trace from the given parameters.
@@ -53,6 +54,8 @@ def generate_trace(
             AA.S0001.S2, AA.S0002.S2, etc.
     save_to_file: bool
         Whether to save the generated trace to a file.
+    use_fortran: bool
+        Whether to use Fortran backend (faster) or Python backend (slower, higher precision). Default is True.
 
     Returns:
     times: np.ndarray
@@ -64,46 +67,16 @@ def generate_trace(
         - 'BYY': Trace component in the rotation direction.
     """
 
-    # Unpack material parameters
-    if not all(
-        key in material_params
-        for key in ["rho", "lam", "mu", "nu", "J", "lam_c", "mu_c", "nu_c"]
-    ):
-        msg = "Missing material parameters"
-        raise ValueError(msg)
-    rho = material_params["rho"]
-    lam = material_params["lam"]
-    mu = material_params["mu"]
-    nu = material_params["nu"]
-    J = material_params["J"]
-    lam_c = material_params["lam_c"]
-    mu_c = material_params["mu_c"]
-    nu_c = material_params["nu_c"]
-
-    # Create the integrator
-    integrator = Integrator(
-        rho, lam, mu, nu, J, lam_c, mu_c, nu_c, digits_precision=digits_precision
-    )
-
     # for safety since we may edit this
     ft_params = ft_params.copy()
 
-    def frequency_domain_func(omega: float) -> np.ndarray:
-        """
-        The frequency domain function to be inverse transformed.
-
-        Computed as G * source_spectrum, where source_spectrum is the magnitude of the source in frequency domain
-        and G is the Green's function evaluated at the given frequency and location.
-        """
-        if type(omega) is np.ndarray:
-            np_array_not_supported_msg = (
-                "omega should be a scalar value, not a numpy array"
-            )
-            raise ValueError(np_array_not_supported_msg)
-        G_omega = integrator.greens_x_omega(x, omega)
-
-        source_mag = source.spectrum(omega)
-        return G_omega * source_mag
+    frequency_domain_func = get_greens_callback(
+        x,
+        material_params,
+        source,
+        use_fortran=use_fortran,
+        digits_precision=digits_precision,
+    )
 
     if "t0" not in ft_params:
         ft_params["t0"] = source.t0()

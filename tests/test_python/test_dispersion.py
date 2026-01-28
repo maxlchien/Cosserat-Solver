@@ -1,103 +1,11 @@
 from __future__ import annotations
 
-import itertools
-
-import pytest
 from mpmath import mp
 
 import cosserat_solver.consts as consts
 from cosserat_solver.dispersion import DispersionHelper
 
 mp.dps = consts.TEST_PRECISION
-
-# --- Predefined material parameter sets ---
-MATERIAL_PARAMETER_SETS = [
-    {
-        "rho": mp.mpf("1e3"),
-        "lam": mp.mpf("1e5"),
-        "mu": mp.mpf("1e5"),
-        "nu": mp.mpf("1e4"),
-        "J": mp.mpf("1"),
-        "lam_c": mp.mpf("1e5"),
-        "mu_c": mp.mpf("1e5"),
-        "nu_c": mp.mpf("1e4"),
-    },
-    {
-        "rho": mp.mpf("1e4"),
-        "lam": mp.mpf("1e6"),
-        "mu": mp.mpf("5e6"),
-        "nu": mp.mpf("1e5"),
-        "J": mp.mpf("1e2"),
-        "lam_c": mp.mpf("2e6"),
-        "mu_c": mp.mpf("3e6"),
-        "nu_c": mp.mpf("5e5"),
-    },
-    {
-        "rho": mp.mpf("1e5"),
-        "lam": mp.mpf("1e7"),
-        "mu": mp.mpf("1e7"),
-        "nu": mp.mpf("1e6"),
-        "J": mp.mpf("1e6"),
-        "lam_c": mp.mpf("1e7"),
-        "mu_c": mp.mpf("1e7"),
-        "nu_c": mp.mpf("1e6"),
-    },
-    {
-        "rho": mp.mpf("1e6"),
-        "lam": mp.mpf("1e8"),
-        "mu": mp.mpf("5e7"),
-        "nu": mp.mpf("1e7"),
-        "J": mp.mpf("1e3"),
-        "lam_c": mp.mpf("1e8"),
-        "mu_c": mp.mpf("1e8"),
-        "nu_c": mp.mpf("1e7"),
-    },
-    {
-        "rho": mp.mpf("1e8"),
-        "lam": mp.mpf("5e5"),
-        "mu": mp.mpf("2e8"),
-        "nu": mp.mpf("3e6"),
-        "J": mp.mpf("1e4"),
-        "lam_c": mp.mpf("4e7"),
-        "mu_c": mp.mpf("6e7"),
-        "nu_c": mp.mpf("8e6"),
-    },
-]
-
-# --- Define k and omega ranges ---
-K_VALUES = [
-    mp.mpf("1e-1"),
-    mp.mpf("1.0"),
-    mp.mpf("10.0"),
-    mp.mpf("100.0"),
-    mp.mpf("1000.0"),
-]
-OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
-
-
-# --- Fixture for material parameters ---
-@pytest.fixture(params=MATERIAL_PARAMETER_SETS)
-def material_parameters(request):
-    """Fixture providing predefined sets of material parameters."""
-    return request.param
-
-
-# --- Fixture for (k, omega) combinations ---
-@pytest.fixture(
-    params=[
-        {"k": k, "omega": omega}
-        for k, omega in itertools.product(K_VALUES, OMEGA_VALUES)
-    ]
-)
-def wave_parameters(request):
-    """Fixture providing combinations of wavenumber and frequency."""
-    return request.param
-
-
-@pytest.fixture(params=[consts.PLUS_BRANCH, -consts.PLUS_BRANCH])
-def branch(request):
-    """Fixture providing the branch of the dispersion relation."""
-    return request.param
 
 
 def test_imaginary(material_parameters, wave_parameters, branch):
@@ -191,7 +99,7 @@ def test_dispersion_relation(material_parameters, wave_parameters, branch):
         digits_precision=consts.TEST_PRECISION,
     )
 
-    c_value = dispersion_helper.c_pm(k, branch)
+    c_value = mp.mpc(dispersion_helper.c_pm(k, branch))
     cancelling_branch = (
         mp.re(dispersion_helper._dispersion_B(k)) < 0 and branch < 0
     ) or (mp.re(dispersion_helper._dispersion_B(k)) >= 0 and branch >= 0)
@@ -208,6 +116,39 @@ def test_dispersion_relation(material_parameters, wave_parameters, branch):
         A c^2: {dispersion_helper._dispersion_A(k) * c_value**2}, B c: {dispersion_helper._dispersion_B(k) * c_value}, C: {dispersion_helper._dispersion_C(k)}. \
         A c^2 + B c: {dispersion_helper._dispersion_A(k) * c_value**2 + dispersion_helper._dispersion_B(k) * c_value}. \
             Precision info: {precision_info()}"
+    )
+
+
+def test_dispersion_zero(material_parameters, wave_parameters, branch):
+    """Test that the dispersion relation is satisfied at c_pm (dispersion_zero() == 0)."""
+    params = material_parameters | wave_parameters
+    rho = params["rho"]
+    lam = params["lam"]
+    mu = params["mu"]
+    nu = params["nu"]
+    J = params["J"]
+    lam_c = params["lam_c"]
+    mu_c = params["mu_c"]
+    nu_c = params["nu_c"]
+
+    k = params["k"]
+
+    dispersion_helper = DispersionHelper(
+        rho=rho,
+        lam=lam,
+        mu=mu,
+        nu=nu,
+        J=J,
+        lam_c=lam_c,
+        mu_c=mu_c,
+        nu_c=nu_c,
+        digits_precision=consts.TEST_PRECISION,
+    )
+
+    dispersion_value = dispersion_helper._dispersion_zero(k, branch)
+
+    assert mp.almosteq(dispersion_value, 0, abs_eps=1e-6), (
+        f"Dispersion relation not satisfied at c_pm for params: {params}, branch: {branch}"
     )
 
 

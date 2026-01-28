@@ -11,8 +11,14 @@ dependencies = ["numpy", "scipy", "mpmath", "numba", "pyyaml", "matplotlib", "ob
 
 
 [dependency-groups]
-test = ["pytest", "pytest-xdist"]
-dev = [{ include-group = "test"}]
+test = ["pytest", "pytest-xdist",
+    "numpy",
+    "scikit-build-core",]
+dev = [
+    { include-group = "test"},
+    "numpy",
+    "scikit-build-core",
+]
 nox = [
     "nox>=2025.5.1",
     "nox-uv>=0.6.2",
@@ -60,9 +66,13 @@ isort.required-imports = ["from __future__ import annotations"]
 cosserat-solver = "cosserat_solver.cli:main"
 
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["scikit-build-core", "numpy"]
+build-backend = "scikit_build_core.build"
 
 [tool.pytest.ini_options]
 addopts = ["--strict-config"]
 testpaths = ["tests"]
+
+[tool.scikit-build]
+# Install the Python package files
+wheel.packages = ["src/cosserat_solver"]
