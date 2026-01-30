@@ -36,7 +36,7 @@ def read(file_path: str):
         A dictionary containing the parameters for the Fourier transform. It should contain the following keys:
         - 'dt': The time step size for the output trace.
         - 'N': The number of time samples for the output trace.
-        - 'oversample_rate': An integer specifying the oversampling rate for internal frequency sampling.
+        - 'extension_factor': An integer specifying the factor for extending the window.
 
     digits_precision: int
         The number of digits of precision for intermediate mpmath calculations.

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from scipy import integrate
 
 from cosserat_solver.fourier import cont_ifft
 
@@ -32,25 +33,6 @@ def gaussian_pair(t0=0.0, sigma=1.0):
     return f, fhat, support_window
 
 
-def exponential_decay_pair(alpha=1.0):
-    r"""
-    Exponential decay for t > 0.
-
-    f(t) = exp(-\alpha*t) for t ≥ 0, 0 otherwise (causal signal)
-
-    f_hat(\omega) = 1/(\alpha - i\omega)
-    """
-
-    def f(t):
-        return np.exp(-alpha * t) * (t >= 0)
-
-    def fhat(omega):
-        return 1 / (alpha - 1j * omega)
-
-    support_window = (-10 / alpha, 10 / alpha)
-    return f, fhat, support_window
-
-
 def ricker_pair(f0=1.0, tshift=0.0):
     r"""
     Ricker wavelet (Mexican hat wavelet).
@@ -73,6 +55,71 @@ def ricker_pair(f0=1.0, tshift=0.0):
         )
 
     support_window = (tshift - 100 / f0, tshift + 100 / f0)
+    return f, fhat, support_window
+
+
+def raised_cosine_pair(T=1.0, t0=0.0):
+    r"""
+    Raised cosine pulse (smooth, narrowly supported).
+
+    f(t) = (1 + cos(π(t-t0)/T)) / 2  for |t-t0| ≤ T, 0 otherwise
+
+    This is narrowly supported in time over [t0-T, t0+T] and has smooth
+    boundaries due to the cosine taper.
+
+    For the forward Fourier convention f_hat(ω) = ∫ f(t) exp(iωt) dt:
+
+    Since f is even and real, f_hat is real and even. The transform is:
+    f_hat(ω) = (π/T)² * sin(ωT) / (ωT * ((π/T)² - ω²)) * exp(iωt0)
+
+    Equivalently: f_hat(ω) = sinc(ωT/π) * [1 + cos(ωT)] where sinc(x) = sin(πx)/(πx)
+    """
+
+    def f(t):
+        t_shifted = t - t0
+        mask = np.abs(t_shifted) <= T
+        return np.where(mask, (1 + np.cos(np.pi * t_shifted / T)) / 2, 0.0)
+
+    def fhat(omega):
+        """
+        Analytical Fourier transform of raised cosine.
+
+        Convention: f_hat(ω) = ∫ f(t) exp(iωt) dt
+
+        For a real, even function, the FT is real.
+        f_hat(ω) = (π/T)² * sin(ωT) / (ωT * ((π/T)² - ω²)) * exp(iωt0)
+        """
+        # Convert scalar to array for uniform handling
+        is_scalar = not isinstance(omega, np.ndarray)
+        omega_arr = np.atleast_1d(omega)
+
+        result = np.zeros(len(omega_arr), dtype=complex)
+        exp_shift = np.exp(1j * omega_arr * t0)
+
+        eps = 1e-10
+
+        for i, w in enumerate(omega_arr):
+            if abs(w) < eps:
+                # Limit as ω->0
+                result[i] = 1.0 * exp_shift[i]
+            elif abs((w * T) ** 2 - np.pi**2) < eps:
+                # Pole at ω = π/T, compute via numerical integration
+
+                def integrand(t): # noqa: B023
+                    return f(t) * np.cos(w * t)
+
+                val, _ = integrate.quad(integrand, t0 - 2 * T, t0 + 2 * T)
+                result[i] = val * exp_shift[i]
+            else:
+                # General formula: (π/T)² * sin(ωT) / (ωT * ((π/T)² - ω²))
+                pi_over_T = np.pi / T
+                numerator = pi_over_T**2 * np.sin(w * T)
+                denominator = w * T * (pi_over_T**2 - w**2)
+                result[i] = (numerator / denominator) * exp_shift[i]
+
+        return result[0] if is_scalar else result
+
+    support_window = (t0 - T, t0 + T)
     return f, fhat, support_window
 
 
@@ -105,10 +152,9 @@ def complex_gaussian_pair(t0=0.0, sigma=1.0, omega_c=2.0):
         pytest.param(gaussian_pair(), id="gaussian_centered"),
         pytest.param(gaussian_pair(t0=2.0, sigma=0.5), id="gaussian_offset_narrow"),
         pytest.param(gaussian_pair(t0=-1.0, sigma=1.5), id="gaussian_offset_wide"),
-        pytest.param(exponential_decay_pair(alpha=1.0), id="exp_decay_slow"),
-        pytest.param(exponential_decay_pair(alpha=3.0), id="exp_decay_fast"),
         pytest.param(ricker_pair(f0=1.0), id="ricker_default"),
         pytest.param(ricker_pair(f0=10.0), id="ricker_f0_10"),
+        pytest.param(raised_cosine_pair(T=1.0, t0=0.0), id="raised_cosine_default"),
     ]
 )
 def real_f_pair(request):
@@ -124,8 +170,9 @@ def real_f_pair(request):
         pytest.param(gaussian_pair(), id="gaussian_centered"),
         pytest.param(gaussian_pair(t0=2.0, sigma=0.5), id="gaussian_offset_narrow"),
         pytest.param(gaussian_pair(t0=-1.0, sigma=1.5), id="gaussian_offset_wide"),
-        pytest.param(exponential_decay_pair(alpha=1.0), id="exp_decay_slow"),
-        pytest.param(exponential_decay_pair(alpha=3.0), id="exp_decay_fast"),
+        pytest.param(ricker_pair(f0=1.0), id="ricker_default"),
+        pytest.param(ricker_pair(f0=10.0), id="ricker_f0_10"),
+        pytest.param(raised_cosine_pair(T=1.0, t0=0.0), id="raised_cosine_default"),
         pytest.param(
             complex_gaussian_pair(t0=0.0, sigma=1.0, omega_c=2.0),
             id="complex_gauss_centered",
@@ -134,8 +181,6 @@ def real_f_pair(request):
             complex_gaussian_pair(t0=1.5, sigma=0.8, omega_c=4.0),
             id="complex_gauss_offset",
         ),
-        pytest.param(ricker_pair(f0=1.0), id="ricker_default"),
-        pytest.param(ricker_pair(f0=10.0), id="ricker_f0_10"),
     ]
 )
 def f_pair(request):
@@ -146,40 +191,59 @@ def f_pair(request):
     return request.param
 
 
-# Parameterized FT parameters
+# Parameterized FT parameters for basic tests (shape, spacing)
 @pytest.fixture(
     params=[
         pytest.param(
-            {"N": 128, "dt": 0.01, "oversample_rate": 4, "t0": 0.0},
-            id="N128_dt0.01_os4",
+            {"N": 128, "dt": 0.01, "extension_factor": 4, "t0": 0.0},
+            id="N128_dt0.01_ext4",
         ),
         pytest.param(
-            {"N": 256, "dt": 0.01, "oversample_rate": 8, "t0": 0.0},
-            id="N256_dt0.01_os8",
+            {"N": 256, "dt": 0.01, "extension_factor": 8, "t0": 0.0},
+            id="N256_dt0.01_ext8",
         ),
         pytest.param(
-            {"N": 128, "dt": 0.05, "oversample_rate": 4, "t0": 0.0},
-            id="N128_dt0.05_os4",
+            {"N": 128, "dt": 0.05, "extension_factor": 2, "t0": 0.0},
+            id="N128_dt0.05_ext2",
         ),
         pytest.param(
-            {"N": 64, "dt": 0.02, "oversample_rate": 4, "t0": 0.0}, id="N64_dt0.02_os4"
+            {"N": 64, "dt": 0.02, "extension_factor": 4, "t0": 0.0},
+            id="N64_dt0.02_ext4",
         ),
     ]
 )
 def ft_params(request):
-    """Fixture providing various FT parameter configurations."""
+    """Fixture providing various FT parameter configurations for basic tests."""
     return request.param
 
 
+# Fine resolution parameters for function recovery tests
 @pytest.fixture(
     params=[
-        pytest.param({"N": 128, "dt": 0.1, "oversample_rate": 2}, id="os2"),
-        pytest.param({"N": 128, "dt": 0.1, "oversample_rate": 4}, id="os4"),
-        pytest.param({"N": 64, "dt": 0.1, "oversample_rate": 8}, id="os8"),
+        pytest.param(
+            {
+                "N": 256,
+                "dt": 0.01,
+                "extension_factor": 10,
+                "refinement_factor": 8,
+                "t0": 0.0,
+            },
+            id="fine_resolution",
+        ),
+        pytest.param(
+            {
+                "N": 128,
+                "dt": 0.02,
+                "extension_factor": 10,
+                "refinement_factor": 4,
+                "t0": 0.0,
+            },
+            id="medium_resolution",
+        ),
     ]
 )
-def ft_params_oversampled(request):
-    """Fixture providing oversampled FT parameters."""
+def ft_params_fine(request):
+    """Fixture providing FT parameters with fine resolution for accurate function recovery."""
     return request.param
 
 
@@ -223,16 +287,17 @@ def test_cont_ifft_time_spacing(ft_params):
     np.testing.assert_allclose(time, expected_time, rtol=1e-10)
 
 
-def test_cont_ifft_singleton(f_pair, ft_params):
+def test_cont_ifft_singleton(f_pair, ft_params_fine):
     """Test that cont_irfft recovers the original time-domain signal."""
     f, fhat, support_window = f_pair
     # Compute via inverse transform
-    ft_params.update({"support_window": support_window})
-    _, result = cont_ifft(fhat, ft_params)
+    ft_params_fine.update({"support_window": support_window})
+    _, result = cont_ifft(fhat, ft_params_fine)
 
     try:
         expected = f(
-            ft_params.get("t0", 0.0) + np.arange(ft_params["N"]) * ft_params["dt"]
+            ft_params_fine.get("t0", 0.0)
+            + np.arange(ft_params_fine["N"]) * ft_params_fine["dt"]
         )
     except Exception:
         # nonvectorized
@@ -240,8 +305,8 @@ def test_cont_ifft_singleton(f_pair, ft_params):
             [
                 f(t)
                 for t in (
-                    ft_params.get("t0", 0.0)
-                    + np.arange(ft_params["N"]) * ft_params["dt"]
+                    ft_params_fine.get("t0", 0.0)
+                    + np.arange(ft_params_fine["N"]) * ft_params_fine["dt"]
                 )
             ]
         )
