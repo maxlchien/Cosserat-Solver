@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-from scipy import integrate
 
 from cosserat_solver.fourier import cont_ifft
 
@@ -103,13 +102,7 @@ def raised_cosine_pair(T=1.0, t0=0.0):
                 # Limit as ω->0
                 result[i] = 1.0 * exp_shift[i]
             elif abs((w * T) ** 2 - np.pi**2) < eps:
-                # Pole at ω = π/T, compute via numerical integration
-
-                def integrand(t): # noqa: B023
-                    return f(t) * np.cos(w * t)
-
-                val, _ = integrate.quad(integrand, t0 - 2 * T, t0 + 2 * T)
-                result[i] = val * exp_shift[i]
+                result[i] = np.nan
             else:
                 # General formula: (π/T)² * sin(ωT) / (ωT * ((π/T)² - ω²))
                 pi_over_T = np.pi / T
