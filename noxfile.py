@@ -28,10 +28,21 @@ def comparisons(session: nox.Session) -> None:
 
     comparisons_dir = pathlib.Path("comparisons")
 
-    for subfolder in comparisons_dir.iterdir():
-        if not subfolder.is_dir():
-            continue
+    # Determine which folders to process
+    if session.posargs:
+        # Use specified folders
+        subfolders_to_process = []
+        for folder_name in session.posargs:
+            folder_path = comparisons_dir / folder_name
+            if not folder_path.exists() or not folder_path.is_dir():
+                err = f"Comparison folder '{folder_name}' does not exist in {comparisons_dir}"
+                raise ValueError(err)
+            subfolders_to_process.append(folder_path)
+    else:
+        # Use all folders
+        subfolders_to_process = [f for f in comparisons_dir.iterdir() if f.is_dir()]
 
+    for subfolder in subfolders_to_process:
         # run solver
         params_file = subfolder / "solver" / "params.yaml"
         if params_file.exists():
