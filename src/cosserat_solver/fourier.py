@@ -13,9 +13,12 @@ The time array is specified in a dict ft_params, which contains:
 - 't0' : float = 0.0, optional   # time-shift applied to result
 - 'support_window': tuple[float, float], optional  # (t_start, t_end) of the window where f(t) is supported
     if not provided then defaults to (t0, t0 + dt * (N-1))
-- 'oversample_rate': int  # oversampling factor for intermediate frequency sampling
+- 'extension_factor': int  # factor for extending the window [t0, t0+N*dt] to [t0, t0+N*dt*extension_factor]
+- 'refinement_factor': int, optional  # factor for finer frequency sampling (dt/refinement_factor spacing)
+    Defaults to extension_factor if not provided
 
 The time array returned is [t0, t0 + dt, t0 + 2*dt, ..., t0 + (N-1)*dt].
+The frequency sampling is conducted over the extended window at refined resolution.
 
 If f is real-valued, then cont_irfft can be used instead. NOTE: currently not implemented
 """
@@ -41,26 +44,28 @@ def _omega_array(ft_params: dict) -> np.ndarray:
         Dictionary containing:
         - 'N': int, number of output samples
         - 'dt': float, time spacing between samples
+        - 'extension_factor': int, extension factor
+        - 'refinement_factor': int (optional), refinement factor
 
     Returns
     -------
     np.ndarray
-        Array of angular frequencies (rad/s) from 0 to Nyquist frequency.
-        Shape: (N_oversample // 2 + 1,) where N_oversample = N * oversample_rate
+        Array of angular frequencies (rad/s).
+        Shape: (N_oversample,) where N_oversample depends on refinement and extension factors
 
     Notes
     -----
-    For a signal sampled at interval dt, the Nyquist angular frequency is π/dt.
-    The frequency spacing is dω = 2π/(N_oversample * dt).
+    The frequency spacing is dω = 2π/(N_oversample * dt_refined) where
+    dt_refined = dt / refinement_factor.
     """
 
     # get number of dt's in the window
     N = len(_oversampled_time_array(ft_params))
     dt = ft_params["dt"]
-    oversample_rate = ft_params["oversample_rate"]
-    dt_oversample = dt / oversample_rate
+    refinement_factor = ft_params.get("refinement_factor", 1)
+    dt_refined = dt / refinement_factor
 
-    freqs = np.fft.fftfreq(N, dt_oversample)
+    freqs = np.fft.fftfreq(N, dt_refined)
 
     return 2 * np.pi * freqs  # convert to rad / sec
 
@@ -69,47 +74,54 @@ def _oversampled_time_array(ft_params: dict) -> np.ndarray:
     """
     Generate the oversampled time array used for intermediate calculations.
 
+    Supports both refinement (finer sampling within a window) and extension (expanding the window).
+    These factors are applied independently:
+    - refinement_factor: Controls sampling density (dt/refinement_factor)
+    - extension_factor: Controls window extent ([t0, t0 + N*dt*extension_factor])
+
     Parameters
     ----------
     ft_params : dict
         Dictionary containing:
         - 'N': int, number of output samples
         - 'dt': float, time spacing between samples
-        - 'oversample_rate': int, oversampling factor for intermediate calculations
+        - 'extension_factor': int, factor for extending the window
+        - 'refinement_factor': int (optional), factor for finer frequency sampling
+          Defaults to 1 if not provided
         - 't0': float (optional), start time of the result (default: 0.0)
-        - 'window_start': float (optional), start time of the window (default: t0 - dt * (N*oversample_rate//2))
+        - 'support_window': tuple[float, float] (optional), custom window (t_start, t_end)
+          If provided, the computed window will be expanded to contain it.
 
     Returns
     -------
     np.ndarray
         Array of oversampled time samples used for intermediate calculations.
-        Shape: (N_oversample,)
-        [window_start, window_start + dt, ..., window_start + (N_oversample-1)*dt]
+        Shape: (N_oversample,) where N_oversample depends on refinement and extension factors
+        Spans the window [window_start, window_start + dt_refined, ..., window_start + (N_oversample-1)*dt_refined]
+        where dt_refined = dt / refinement_factor and window spans [t0, t0 + N*dt*extension_factor]
     """
     window = ft_params.get("support_window")
     dt = ft_params["dt"]
     N = ft_params["N"]
-    oversample_rate = ft_params["oversample_rate"]
-    N_oversample = N * oversample_rate
-    dt_oversample = dt / oversample_rate
+    extension_factor = ft_params.get("extension_factor", 1)
+
+    # Get refinement factor, defaulting to 1
+    refinement_factor = ft_params.get("refinement_factor", 1)
+
+    # The refined time step
+    dt_refined = dt / refinement_factor
+
+    # The window spans [t0, t0 + N*dt*extension_factor]
     t0 = ft_params.get("t0", 0.0)
-    max_t0 = t0
-    min_tf = max_t0 + dt_oversample * (N_oversample - 1)
+    window_start = t0
+    window_end = t0 + N * dt * extension_factor
+
+    # If a custom support_window is provided, expand our computed window to contain it
     if window is not None:
-        window_start = window[0]
-        window_end = window[1]
-    else:
-        window_start = t0
-        window_end = t0 + dt_oversample * (N_oversample - 1)
+        window_start = min(window_start, window[0])
+        window_end = max(window_end, window[1])
 
-    # ensure original window is contained in expanded window
-    if window_start > max_t0:
-        window_start = max_t0
-    if window_end < min_tf:
-        window_end = min_tf
-
-    return np.arange(window_start, window_end + dt_oversample / 2, dt_oversample)
-    # return window_start + np.arange(N_oversample) * dt_oversample
+    return np.arange(window_start, window_end + dt_refined / 2, dt_refined)
 
 
 def downsample_signal(expanded_time, downsampled_time, expanded_signal) -> np.ndarray:
@@ -188,7 +200,8 @@ def cont_irfft(func, ft_params: dict) -> tuple[np.ndarray, np.ndarray]:
         Dictionary containing:
         - 'N': int, number of output samples in time domain
         - 'dt': float, time spacing between samples (seconds)
-        - 'oversample_rate': int, oversampling factor (>= 1) for accuracy
+        - 'extension_factor': int, extension factor for extended window
+        - 'refinement_factor': int (optional), refinement factor for finer sampling
         - 'pad_factor': int (optional), zero-padding factor to avoid wraparound (default: 2)
 
     Returns
@@ -209,73 +222,11 @@ def cont_irfft(func, ft_params: dict) -> tuple[np.ndarray, np.ndarray]:
     with support at negative times will not contaminate the forward-time output
     window [0, (N-1)*dt].
 
-    Oversampling (oversample_rate > 1) computes the transform at higher resolution
-    then downsamples to the requested N points for improved accuracy.
+    Refinement and extension improve accuracy by computing the transform at higher
+    resolution then downsampling to the requested N points.
     """
     not_impl_msg = "cont_irfft is not yet implemented"
     raise NotImplementedError(not_impl_msg)
-    # N = ft_params["N"]
-    # dt = ft_params["dt"]
-    # oversample_rate = ft_params["oversample_rate"]
-
-    # N_oversample = N * oversample_rate
-    # N_padded = N_oversample * pad_factor
-
-    # # Create modified ft_params for the padded grid (without modifying original)
-    # ft_params_padded = {
-    #     "N": N_padded,
-    #     "dt": dt,
-    #     "oversample_rate": 1,  # Already accounted for in N_padded
-    # }
-
-    # # Get frequency array for the padded grid
-    # omega = _omega_array(ft_params_padded)
-
-    # # Evaluate the continuous FT function at discrete frequencies
-    # freq_samples = func(omega)
-
-    # # Ensure freq_samples has at least 2 dimensions for consistent handling
-    # if freq_samples.ndim == 1:
-    #     freq_samples = freq_samples[:, np.newaxis]
-    #     squeeze_output = True
-    # else:
-    #     squeeze_output = False
-
-    # # freq_samples shape: (n_freqs, *spatial_dims)
-    # spatial_shape = freq_samples.shape[1:]
-
-    # # Scaling factor: discretizing (1/2π) ∫ f_hat(ω) exp(iωt) dω
-    # # With Δω = 2π/(N_padded * dt):
-    # # f(t_n) ≈ (1/2π) Σ f_hat(ω_k) exp(iω_k t_n) * (2π/(N_padded * dt))
-    # # = (1/(N_padded * dt)) Σ f_hat(ω_k) exp(iω_k t_n)
-    # # After irfft (norm='backward'), we get: Σ f_hat(ω_k) exp(...)
-    # # So we need to multiply by: 1/(N_padded * dt) but also account for
-    # # the fact that we're using the actual dt spacing, not the padded spacing
-    # # scale_factor = (2 * np.pi) / (N_padded * dt)
-    # scale_factor = 1 / dt
-
-    # # Compute inverse FFT
-    # time_signal_padded = np.fft.irfft(freq_samples, n=N_padded, axis=0, norm="backward")
-    # time_signal_padded *= scale_factor
-
-    # # Extract only the first N_oversample samples (forward time window)
-    # # These correspond to times [0, dt, 2*dt, ..., (N_oversample-1)*dt]
-    # time_signal_oversampled = time_signal_padded[:N_oversample, ...]
-
-    # # Downsample if oversampling was used
-    # if oversample_rate > 1:
-    #     time_signal = time_signal_oversampled[::oversample_rate, ...]
-    # else:
-    #     time_signal = time_signal_oversampled
-
-    # # Restore original shape if input was 1D
-    # if squeeze_output:
-    #     time_signal = time_signal.squeeze(axis=1)
-
-    # # Get time array
-    # time = _time_array(ft_params)
-
-    # return time, time_signal
 
 
 def cont_ifft(
@@ -287,7 +238,7 @@ def cont_ifft(
 
     Given a function that outputs the continuous Fourier transform spectrum,
     this discretizes it appropriately and applies numpy's ifft to recover
-    the time-domain signal sampled at forward times [0, dt, 2*dt, ..., (N-1)*dt].
+    the time-domain signal.
 
     Parameters
     ----------
@@ -299,18 +250,30 @@ def cont_ifft(
         Dictionary containing:
         - 'N': int, number of output samples in time domain
         - 'dt': float, time spacing between samples (seconds)
-        - 'oversample_rate': int, oversampling factor (>= 1) for accuracy
+        - 'extension_factor': int, factor for extending the output window [t0, t0 + N*dt*extension_factor]
         - 't0': float (optional), start time of the result (default: 0.0)
-        - 'window_start': float (optional), start time of the window (default: t0 - dt * (N*oversample_rate//2))
-            currently this does not do anything and is overriden by the default behavior.
+        - 'refinement_factor': int (optional), factor for finer frequency sampling
+            The frequency samples are computed at spacing dt/refinement_factor.
+            Defaults to 1 if not provided.
+        - 'support_window': tuple[float, float] (optional), custom window bounds
+            This expands the computed window to contain it.
 
     Returns
     -------
     time : np.ndarray
-        Time array with shape (N,), values [0, dt, 2*dt, ..., (N-1)*dt]
+        Time array corresponding to the output trace, shape (N,), values [t0, t0 + dt, ..., t0 + (N-1)*dt]
     signal : np.ndarray
         Time-domain signal with shape (N, *func_shape), where func_shape is the
-        shape of the output from func (excluding the frequency dimension)."""
+        shape of the output from func (excluding the frequency dimension).
+
+    Notes
+    -----
+    The refinement_factor and extension_factor are applied independently:
+    - refinement_factor controls how finely the frequency domain is sampled (defaults to 1)
+    - extension_factor controls how much to extend the time window
+    The frequency domain is sampled densely over the extended window, then the
+    time-domain result is downsampled to the output time grid.
+    """
 
     expanded_time = _oversampled_time_array(ft_params)
     omega_array = _omega_array(ft_params)
@@ -335,7 +298,8 @@ def cont_ifft(
     expanded_time_signal = np.fft.ifft(freq_samples_shifted, axis=0, norm="backward")
 
     # fix to account for conventions
-    scale_factor = 1 / (ft_params["dt"] / ft_params["oversample_rate"])
+    refinement_factor = ft_params.get("refinement_factor", 1)
+    scale_factor = 1 / (ft_params["dt"] / refinement_factor)
     expanded_time_signal *= scale_factor
     expanded_time_signal = np.conj(
         expanded_time_signal
