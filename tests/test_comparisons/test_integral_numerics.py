@@ -104,7 +104,7 @@ def _mpmath_integral(
     mp.dps = 50
 
     def integrand(r):
-        r = r + mp.mpc(0, 1e-16)  # contour shift
+        r = r + mp.mpc(0, 1e-16) if r < 0 else r + mp.mpc(0, -1e-16)  # contour shift
         c_pm = integrator.dispersion_helper.c_pm(r, branch)
         denom = (
             (mu + nu) * r**2
@@ -186,10 +186,6 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
         complex(omega), complex(norm_x_value), branch
     )
 
-    poles = integrator.get_poles_and_branches(omega)
-    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
-    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
-
     numerical_result, _, had_warning = _quad_lowlevel_integrand(
         fortran_integrator,
         INTEGRAND_IDS["3_0"],
@@ -204,7 +200,13 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
     python_result_float = complex(python_result)
 
     # if there is an error or warning, compute with more precision
-    if had_warning or not np.isclose(python_result_float, numerical_result, rtol=1e-5):
+    if had_warning or not np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ):
         numerical_result = _mpmath_integral(
             integrator,
             INTEGRAND_IDS["3_0"],
@@ -217,20 +219,21 @@ def test_integration_3_0(material_parameters, omega_value, norm_x_value, branch)
             J,
         )
 
-    assert np.isclose(python_result_float, fortran_result, rtol=1e-5), (
-        f"Integral I_3,0 mismatch (python vs fortran) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(python_result_float, numerical_result, rtol=1e-5), (
-        f"Integral I_3,0 mismatch (python vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(fortran_result, numerical_result, rtol=1e-5), (
-        f"Integral I_3,0 mismatch (fortran vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    assert np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ), (
+        f"I_3,0 mismatch: python={python_result_float}, fortran={fortran_result}, numerical={numerical_result}"
     )
 
 
+# @pytest.mark.skipif(
+#     not IN_GITHUB_ACTIONS,
+#     reason="Skipping numerical integration tests outside GitHub Actions for efficiency",
+# )
 def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{3,2} is consistent with numerical calculation
 
@@ -278,10 +281,6 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
         complex(omega), complex(norm_x_value), branch
     )
 
-    poles = integrator.get_poles_and_branches(omega)
-    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
-    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
-
     numerical_result, _, had_warning = _quad_lowlevel_integrand(
         fortran_integrator,
         INTEGRAND_IDS["3_2"],
@@ -296,7 +295,13 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
     python_result_float = complex(python_result)
 
     # if there is an error or warning, compute with more precision
-    if had_warning or not np.isclose(python_result_float, numerical_result, rtol=1e-5):
+    if had_warning or not np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ):
         numerical_result = _mpmath_integral(
             integrator,
             INTEGRAND_IDS["3_2"],
@@ -309,20 +314,21 @@ def test_integration_3_2(material_parameters, omega_value, norm_x_value, branch)
             J,
         )
 
-    assert np.isclose(python_result_float, fortran_result, rtol=1e-5), (
-        f"Integral I_3,2 mismatch (python vs fortran) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(python_result_float, numerical_result, rtol=1e-5), (
-        f"Integral I_3,2 mismatch (python vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(fortran_result, numerical_result, rtol=1e-5), (
-        f"Integral I_3,2 mismatch (fortran vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    assert np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ), (
+        f"I_3,2 mismatch: python={python_result_float}, fortran={fortran_result}, numerical={numerical_result}"
     )
 
 
+# @pytest.mark.skipif(
+#     not IN_GITHUB_ACTIONS,
+#     reason="Skipping numerical integration tests outside GitHub Actions for efficiency",
+# )
 def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{2,1} is consistent with numerical calculation
 
@@ -370,10 +376,6 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
         complex(omega), complex(norm_x_value), branch
     )
 
-    poles = integrator.get_poles_and_branches(omega)
-    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
-    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
-
     numerical_result, _, had_warning = _quad_lowlevel_integrand(
         fortran_integrator,
         INTEGRAND_IDS["2_1"],
@@ -388,7 +390,13 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
     python_result_float = complex(python_result)
 
     # if there is an error or warning, compute with more precision
-    if had_warning or not np.isclose(python_result_float, numerical_result, rtol=1e-5):
+    if had_warning or not np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ):
         numerical_result = _mpmath_integral(
             integrator,
             INTEGRAND_IDS["2_1"],
@@ -401,20 +409,21 @@ def test_integration_2_1(material_parameters, omega_value, norm_x_value, branch)
             J,
         )
 
-    assert np.isclose(python_result_float, fortran_result, rtol=1e-5), (
-        f"Integral I_2,1 mismatch (python vs fortran) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(python_result_float, numerical_result, rtol=1e-5), (
-        f"Integral I_2,1 mismatch (python vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(fortran_result, numerical_result, rtol=1e-5), (
-        f"Integral I_2,1 mismatch (fortran vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    assert np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ), (
+        f"I_2,1 mismatch: python={python_result_float}, fortran={fortran_result}, numerical={numerical_result}"
     )
 
 
+# @pytest.mark.skipif(
+#     not IN_GITHUB_ACTIONS,
+#     reason="Skipping numerical integration tests outside GitHub Actions for efficiency",
+# )
 def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch):
     r"""Test that the residue integration for I_{1,0} is consistent with numerical calculation
 
@@ -462,10 +471,6 @@ def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch)
         complex(omega), complex(norm_x_value), branch
     )
 
-    poles = integrator.get_poles_and_branches(omega)
-    d1_prime = integrator.denom_prime(poles[0][0], omega, poles[0][1])
-    d2_prime = integrator.denom_prime(poles[1][0], omega, poles[1][1])
-
     numerical_result, _, had_warning = _quad_lowlevel_integrand(
         fortran_integrator,
         INTEGRAND_IDS["1_0"],
@@ -480,7 +485,13 @@ def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch)
     python_result_float = complex(python_result)
 
     # if there is an error or warning, compute with more precision
-    if had_warning or not np.isclose(python_result_float, numerical_result, rtol=1e-5):
+    if had_warning or not np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ):
         numerical_result = _mpmath_integral(
             integrator,
             INTEGRAND_IDS["1_0"],
@@ -493,15 +504,12 @@ def test_integration_1_0(material_parameters, omega_value, norm_x_value, branch)
             J,
         )
 
-    assert np.isclose(python_result_float, fortran_result, rtol=1e-5), (
-        f"Integral I_1,0 mismatch (python vs fortran) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(python_result_float, numerical_result, rtol=1e-5), (
-        f"Integral I_1,0 mismatch (python vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
-    )
-    assert np.isclose(fortran_result, numerical_result, rtol=1e-5), (
-        f"Integral I_1,0 mismatch (fortran vs numerical) for params: {params}, omega: {omega}, norm_x: {norm_x_value}, branch: {branch} \
-            d_prime (first pole): {d1_prime}, d_prime (second pole): {d2_prime}"
+    assert np.all(
+        [
+            np.isclose(python_result_float, fortran_result, rtol=1e-5),
+            np.isclose(python_result_float, numerical_result, rtol=1e-5),
+            np.isclose(fortran_result, numerical_result, rtol=1e-5),
+        ]
+    ), (
+        f"I_1,0 mismatch: python={python_result_float}, fortran={fortran_result}, numerical={numerical_result}"
     )
