@@ -48,8 +48,6 @@ contains
     complex(rk) :: C
 
     C = (0.0_rk, 2.0_rk) * nu * r**2 / sqrt(rho * J)
-    ! print *, "dispersion_C debug: FORTRAN"
-    ! print *, r, r**2, sqrt(rho * J), nu, (0.0_rk, 2.0_rk) * nu, C
   end function dispersion_C
 
   !---------------------------------------------
@@ -123,11 +121,6 @@ function c_pm(r, branch, rho, mu, nu, J, mu_c, nu_c) result(c)
       c = noncancelling
     end if
   end if
-
-  ! print *, "A =", A
-  ! print *, "B =", B
-  ! print *, "C =", C_coeff
-  ! print *, "FORTRAN c_\pm =", c
 
 end function c_pm
 

@@ -250,6 +250,276 @@ contains
   end subroutine integral_1_0_c
 
   !-----------------------------------------
+  ! Integrand wrappers
+  !-----------------------------------------
+  subroutine integrand_3_0_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_3_0")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_3_0_fcn(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_3_0_c
+
+  subroutine integrand_3_2_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_3_2")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_3_2_fcn(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_3_2_c
+
+  subroutine integrand_2_1_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_2_1")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_2_1_fcn(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_2_1_c
+
+  subroutine integrand_1_0_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_1_0")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_1_0_fcn(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_1_0_c
+
+  !-----------------------------------------
+  ! Full integrand wrappers (with denominator)
+  !-----------------------------------------
+  subroutine integrand_3_0_full_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_3_0_full")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_3_0_full(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_3_0_full_c
+
+  subroutine integrand_3_2_full_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_3_2_full")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_3_2_full(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_3_2_full_c
+
+  subroutine integrand_2_1_full_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_2_1_full")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_2_1_full(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_2_1_full_c
+
+  subroutine integrand_1_0_full_c( &
+      r_re, r_im, omega_re, omega_im, normx_re, normx_im, branch, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+      out_re, out_im) &
+      bind(C, name="integrand_1_0_full")
+    real(c_double), value :: r_re, r_im
+    real(c_double), value :: omega_re, omega_im
+    real(c_double), value :: normx_re, normx_im
+    integer(c_int), value :: branch
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(out) :: out_re, out_im
+
+    complex(rk) :: r, omega, normx, val
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+
+    r = cmplx(r_re, r_im, kind=rk)
+    omega = cmplx(omega_re, omega_im, kind=rk)
+    normx = cmplx(normx_re, normx_im, kind=rk)
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+
+    val = integrand_1_0_full(r, omega, branch, normx, rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+
+    out_re = real(val, rk)
+    out_im = aimag(val)
+  end subroutine integrand_1_0_full_c
+
+  !-----------------------------------------
   ! Green's function wrappers
   !-----------------------------------------
   subroutine greens_x_omega_P_c(x, omega_re, omega_im, &

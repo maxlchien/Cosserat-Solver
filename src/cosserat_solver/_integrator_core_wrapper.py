@@ -4,12 +4,38 @@ Python wrapper for integrator_core Fortran extension.
 
 from __future__ import annotations
 
+import typing
+from ctypes import Structure, addressof, c_double, c_int32, c_void_p
+
+from scipy import LowLevelCallable
+
 try:
     from cosserat_solver import integrator_core
 
     HAS_FORTRAN = True
 except ImportError:
     HAS_FORTRAN = False
+
+
+class IntegrandContext(Structure):
+    _fields_: typing.ClassVar[list[tuple[str, type]]] = [
+        ("omega_re", c_double),
+        ("omega_im", c_double),
+        ("normx_re", c_double),
+        ("normx_im", c_double),
+        ("branch", c_int32),
+        ("rho", c_double),
+        ("lam", c_double),
+        ("mu", c_double),
+        ("nu", c_double),
+        ("J", c_double),
+        ("lam_c", c_double),
+        ("mu_c", c_double),
+        ("nu_c", c_double),
+        ("contour_shift", c_double),
+        ("integrand_id", c_int32),
+        ("component", c_int32),
+    ]
 
 
 class IntegratorFortran:
@@ -208,6 +234,139 @@ class IntegratorFortran:
             self.nu_c,
         )
         return re + 1j * im
+
+    # ------------------------------------------------------------
+    # Integrand kernels
+    # ------------------------------------------------------------
+
+    def integrand_3_0(
+        self, r: complex, omega: complex, normx: complex, branch: int
+    ) -> complex:
+        re, im = integrator_core.integrand_3_0(
+            r.real,
+            r.imag,
+            omega.real,
+            omega.imag,
+            normx.real,
+            normx.imag,
+            int(branch),
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+        return re + 1j * im
+
+    def integrand_3_2(
+        self, r: complex, omega: complex, normx: complex, branch: int
+    ) -> complex:
+        re, im = integrator_core.integrand_3_2(
+            r.real,
+            r.imag,
+            omega.real,
+            omega.imag,
+            normx.real,
+            normx.imag,
+            int(branch),
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+        return re + 1j * im
+
+    def integrand_2_1(
+        self, r: complex, omega: complex, normx: complex, branch: int
+    ) -> complex:
+        re, im = integrator_core.integrand_2_1(
+            r.real,
+            r.imag,
+            omega.real,
+            omega.imag,
+            normx.real,
+            normx.imag,
+            int(branch),
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+        return re + 1j * im
+
+    def integrand_1_0(
+        self, r: complex, omega: complex, normx: complex, branch: int
+    ) -> complex:
+        re, im = integrator_core.integrand_1_0(
+            r.real,
+            r.imag,
+            omega.real,
+            omega.imag,
+            normx.real,
+            normx.imag,
+            int(branch),
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+        )
+        return re + 1j * im
+
+    def lowlevel_integrand(
+        self,
+        integrand_id: int,
+        omega: complex,
+        normx: complex,
+        branch: int,
+        *,
+        component: int,
+        contour_shift: float = 1e-8,
+    ):
+        """
+        Build a SciPy LowLevelCallable and context for fast quad integration.
+
+        Returns (lowlevel_callable, context). Keep the context alive while integrating.
+        """
+
+        ctx = IntegrandContext(
+            omega.real,
+            omega.imag,
+            normx.real,
+            normx.imag,
+            int(branch),
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+            float(contour_shift),
+            int(integrand_id),
+            int(component),
+        )
+
+        # Get the C function capsule
+        capsule = integrator_core.integrand_llc_capsule()
+
+        llc = LowLevelCallable(capsule, c_void_p(addressof(ctx)))
+        return llc, ctx
 
     # ------------------------------------------------------------
     # Green's functions

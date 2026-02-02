@@ -138,6 +138,168 @@ void integral_1_0(
     double *out_im
 );
 
+/* Integrand kernels */
+void integrand_3_0(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_3_2(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_2_1(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_1_0(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+/* Full integrand kernels (with denominator) */
+void integrand_3_0_full(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_3_2_full(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_2_1_full(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
+void integrand_1_0_full(
+    double r_re,
+    double r_im,
+    double omega_re,
+    double omega_im,
+    double normx_re,
+    double normx_im,
+    int32_t branch,
+    double rho,
+    double lam,
+    double mu,
+    double nu,
+    double J,
+    double lam_c,
+    double mu_c,
+    double nu_c,
+    double *out_re,
+    double *out_im
+);
+
 void greens_x_omega_P(
     double x[2], double omega_re, double omega_im,
     double rho, double lam, double mu, double nu, double J,
@@ -162,6 +324,79 @@ void greens_x_omega(
     double lam_c, double mu_c, double nu_c,
     double complex G[3*3]
 );
+
+/* ============================================================
+   LowLevelCallable support for integrands
+   ============================================================ */
+
+typedef struct integrand_ctx {
+    double omega_re;
+    double omega_im;
+    double normx_re;
+    double normx_im;
+    int32_t branch;
+    double rho;
+    double lam;
+    double mu;
+    double nu;
+    double J;
+    double lam_c;
+    double mu_c;
+    double nu_c;
+    double contour_shift;
+    int32_t integrand_id; /* 0:3_0, 1:3_2, 2:2_1, 3:1_0 */
+    int32_t component;    /* 0: real, 1: imag */
+} integrand_ctx;
+
+static double integrand_llc(double x, void* user_data) {
+    integrand_ctx* ctx = (integrand_ctx*)user_data;
+    double val_re = 0.0, val_im = 0.0;
+    double r_re = x;
+    double r_im = ctx->contour_shift;
+
+    switch (ctx->integrand_id) {
+        case 0:
+            integrand_3_0_full(r_re, r_im,
+                          ctx->omega_re, ctx->omega_im,
+                          ctx->normx_re, ctx->normx_im,
+                          ctx->branch,
+                          ctx->rho, ctx->lam, ctx->mu, ctx->nu, ctx->J,
+                          ctx->lam_c, ctx->mu_c, ctx->nu_c,
+                          &val_re, &val_im);
+            break;
+        case 1:
+            integrand_3_2_full(r_re, r_im,
+                          ctx->omega_re, ctx->omega_im,
+                          ctx->normx_re, ctx->normx_im,
+                          ctx->branch,
+                          ctx->rho, ctx->lam, ctx->mu, ctx->nu, ctx->J,
+                          ctx->lam_c, ctx->mu_c, ctx->nu_c,
+                          &val_re, &val_im);
+            break;
+        case 2:
+            integrand_2_1_full(r_re, r_im,
+                          ctx->omega_re, ctx->omega_im,
+                          ctx->normx_re, ctx->normx_im,
+                          ctx->branch,
+                          ctx->rho, ctx->lam, ctx->mu, ctx->nu, ctx->J,
+                          ctx->lam_c, ctx->mu_c, ctx->nu_c,
+                          &val_re, &val_im);
+            break;
+        case 3:
+            integrand_1_0_full(r_re, r_im,
+                          ctx->omega_re, ctx->omega_im,
+                          ctx->normx_re, ctx->normx_im,
+                          ctx->branch,
+                          ctx->rho, ctx->lam, ctx->mu, ctx->nu, ctx->J,
+                          ctx->lam_c, ctx->mu_c, ctx->nu_c,
+                          &val_re, &val_im);
+            break;
+        default:
+            return 0.0;
+    }
+
+    return (ctx->component == 0) ? val_re : val_im;
+}
 
 /* ============================================================
    Python wrappers
@@ -209,6 +444,114 @@ static PyObject* py_denom_prime(PyObject* self, PyObject* args) {
                 &out_re, &out_im);
 
     return Py_BuildValue("(dd)", out_re, out_im);
+}
+
+/* ------------------ integrands ------------------ */
+
+static PyObject* py_integrand_3_0(PyObject* self, PyObject* args) {
+    double r_re, r_im, omega_re, omega_im, normx_re, normx_im;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int branch;
+    double out_re, out_im;
+
+    if (!PyArg_ParseTuple(args, "ddddddidddddddd",
+                          &r_re, &r_im,
+                          &omega_re, &omega_im,
+                          &normx_re, &normx_im,
+                          &branch,
+                          &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+        return NULL;
+    }
+
+    integrand_3_0(r_re, r_im,
+                  omega_re, omega_im,
+                  normx_re, normx_im,
+                  (int32_t)branch,
+                  rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+                  &out_re, &out_im);
+
+    return Py_BuildValue("(dd)", out_re, out_im);
+}
+
+static PyObject* py_integrand_3_2(PyObject* self, PyObject* args) {
+    double r_re, r_im, omega_re, omega_im, normx_re, normx_im;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int branch;
+    double out_re, out_im;
+
+    if (!PyArg_ParseTuple(args, "ddddddidddddddd",
+                          &r_re, &r_im,
+                          &omega_re, &omega_im,
+                          &normx_re, &normx_im,
+                          &branch,
+                          &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+        return NULL;
+    }
+
+    integrand_3_2(r_re, r_im,
+                  omega_re, omega_im,
+                  normx_re, normx_im,
+                  (int32_t)branch,
+                  rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+                  &out_re, &out_im);
+
+    return Py_BuildValue("(dd)", out_re, out_im);
+}
+
+static PyObject* py_integrand_2_1(PyObject* self, PyObject* args) {
+    double r_re, r_im, omega_re, omega_im, normx_re, normx_im;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int branch;
+    double out_re, out_im;
+
+    if (!PyArg_ParseTuple(args, "ddddddidddddddd",
+                          &r_re, &r_im,
+                          &omega_re, &omega_im,
+                          &normx_re, &normx_im,
+                          &branch,
+                          &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+        return NULL;
+    }
+
+    integrand_2_1(r_re, r_im,
+                  omega_re, omega_im,
+                  normx_re, normx_im,
+                  (int32_t)branch,
+                  rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+                  &out_re, &out_im);
+
+    return Py_BuildValue("(dd)", out_re, out_im);
+}
+
+static PyObject* py_integrand_1_0(PyObject* self, PyObject* args) {
+    double r_re, r_im, omega_re, omega_im, normx_re, normx_im;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int branch;
+    double out_re, out_im;
+
+    if (!PyArg_ParseTuple(args, "ddddddidddddddd",
+                          &r_re, &r_im,
+                          &omega_re, &omega_im,
+                          &normx_re, &normx_im,
+                          &branch,
+                          &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+        return NULL;
+    }
+
+    integrand_1_0(r_re, r_im,
+                  omega_re, omega_im,
+                  normx_re, normx_im,
+                  (int32_t)branch,
+                  rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+                  &out_re, &out_im);
+
+    return Py_BuildValue("(dd)", out_re, out_im);
+}
+
+static PyObject* py_integrand_llc_capsule(PyObject* self, PyObject* args) {
+    (void)self;
+    (void)args;
+    return PyCapsule_New((void*)integrand_llc, "double (double, void *)", NULL);
 }
 
 /* ------------------ poles ------------------ */
@@ -349,6 +692,13 @@ static PyMethodDef IntegratorMethods[] = {
      "Evaluate denominator"},
     {"denom_prime", py_denom_prime, METH_VARARGS,
      "Evaluate derivative of denominator"},
+
+    {"integrand_3_0", py_integrand_3_0, METH_VARARGS, "Integrand 3_0"},
+    {"integrand_3_2", py_integrand_3_2, METH_VARARGS, "Integrand 3_2"},
+    {"integrand_2_1", py_integrand_2_1, METH_VARARGS, "Integrand 2_1"},
+    {"integrand_1_0", py_integrand_1_0, METH_VARARGS, "Integrand 1_0"},
+    {"integrand_llc_capsule", py_integrand_llc_capsule, METH_NOARGS,
+     "Return LowLevelCallable capsule for integrands"},
 
     {"get_r2_poles_and_branches", py_get_r2_poles_and_branches, METH_VARARGS,
      "Compute r^2 poles and associated branches"},

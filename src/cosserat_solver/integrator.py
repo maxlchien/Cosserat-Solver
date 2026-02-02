@@ -271,6 +271,9 @@ class Integrator:
 
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
+
+        # TODO: remove this fix
+        G_mp[2, :] = 2 * G_mp[2, :]
         # convert to np.ndarray complex floats
         return np.array(G_mp.tolist(), dtype=np.complex128)
 
@@ -306,6 +309,10 @@ class Integrator:
 
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
+
+        # TODO: remove this fix
+        G_mp[2, :] = 2 * G_mp[2, :]
+        G_mp = -G_mp
         # convert to np.ndarray complex floats
         return np.array(G_mp.tolist(), dtype=np.complex128)
 
@@ -335,6 +342,11 @@ class Integrator:
 
         R = Integrator.rotation_matrix(phi)
         G_mp = R * unrotated * R.T
+
+        # TODO: remove this fix
+        G_mp[2, :] = 2 * G_mp[2, :]
+        G_mp = -G_mp
+
         # convert to np.ndarray complex floats
         return np.array(G_mp.tolist(), dtype=np.complex128)
 

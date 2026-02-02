@@ -9,6 +9,8 @@ module integrator_core
   public :: get_poles_and_branches, pick_pole, get_r2_poles_and_branches
   public :: integrate
   public :: integral_3_0, integral_3_2, integral_2_1, integral_1_0
+  public :: integrand_3_0_fcn, integrand_3_2_fcn, integrand_2_1_fcn, integrand_1_0_fcn
+  public :: integrand_3_0_full, integrand_3_2_full, integrand_2_1_full, integrand_1_0_full
   public :: rotation_matrix
   public :: greens_x_omega_P
   public :: greens_x_omega_plus
@@ -315,6 +317,51 @@ end function hankel1
     v = (-r * cpm**2 / (r**2 - cpm**2)) * hankel1(0, r*normx)
   end function integrand_1_0_fcn
 
+  ! Full integrand functions (with denominator) for numerical integration
+  function integrand_3_0_full(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(v)
+    complex(rk), intent(in) :: r, omega, normx
+    integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    complex(rk) :: v
+    complex(rk) :: num, d
+    num = integrand_3_0_fcn(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    d = denom(r, omega, branch, rho, mu, nu, J, mu_c, nu_c)
+    v = num / d
+  end function integrand_3_0_full
+
+  function integrand_3_2_full(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(v)
+    complex(rk), intent(in) :: r, omega, normx
+    integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    complex(rk) :: v
+    complex(rk) :: num, d
+    num = integrand_3_2_fcn(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    d = denom(r, omega, branch, rho, mu, nu, J, mu_c, nu_c)
+    v = num / d
+  end function integrand_3_2_full
+
+  function integrand_2_1_full(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(v)
+    complex(rk), intent(in) :: r, omega, normx
+    integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    complex(rk) :: v
+    complex(rk) :: num, d
+    num = integrand_2_1_fcn(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    d = denom(r, omega, branch, rho, mu, nu, J, mu_c, nu_c)
+    v = num / d
+  end function integrand_2_1_full
+
+  function integrand_1_0_full(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(v)
+    complex(rk), intent(in) :: r, omega, normx
+    integer, intent(in) :: branch
+    real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    complex(rk) :: v
+    complex(rk) :: num, d
+    num = integrand_1_0_fcn(r, omega, branch, normx, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    d = denom(r, omega, branch, rho, mu, nu, J, mu_c, nu_c)
+    v = num / d
+  end function integrand_1_0_full
+
 ! greens logic
 
   !-------------------------
@@ -379,6 +426,11 @@ end function hankel1
     ! Compute G = R * unrotated * R^T
     temp = matmul(R, unrotated)
     G = matmul(temp, RT)
+
+    ! TODO: remove this fix
+    G(3, 1) = 2*G(3,1)
+    G(3,2) = 2*G(3,2)
+    G(3,3) = 2*G(3,3)
   end subroutine greens_x_omega_P
 
   !-------------------------
@@ -420,6 +472,13 @@ end function hankel1
     ! Compute G = R * unrotated * R^T
     temp = matmul(R, unrotated)
     G = matmul(temp, RT)
+
+    ! TODO: remove this fix
+    G = -G
+    ! TODO: remove this fix
+    G(3, 1) = 2*G(3,1)
+    G(3,2) = 2*G(3,2)
+    G(3,3) = 2*G(3,3)
   end subroutine greens_x_omega_plus
 
   !-------------------------
@@ -461,6 +520,13 @@ end function hankel1
     ! Compute G = R * unrotated * R^T
     temp = matmul(R, unrotated)
     G = matmul(temp, RT)
+
+    ! TODO: remove this fix
+    G = -G
+    ! TODO: remove this fix
+    G(3, 1) = 2*G(3,1)
+    G(3,2) = 2*G(3,2)
+    G(3,3) = 2*G(3,3)
   end subroutine greens_x_omega_minus
 
   !-------------------------
