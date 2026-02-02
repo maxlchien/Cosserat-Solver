@@ -12,12 +12,16 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+from mpmath import mp
 
+from cosserat_solver import consts
+from cosserat_solver._integrator_core_wrapper import IntegratorFortran
 from cosserat_solver.greens_wrapper import (
     FORTRAN_AVAILABLE,
     evaluate_greens_fortran,
     evaluate_greens_python,
 )
+from cosserat_solver.integrator import Integrator
 
 # Test spatial positions
 POSITIONS = [
@@ -90,7 +94,12 @@ def evaluate_greens(backend_type, material_parameters):
 
     # python
     def _evaluate(position, frequency):
-        return evaluate_greens_python(position, frequency, material_parameters)
+        return evaluate_greens_python(
+            position,
+            frequency,
+            material_parameters,
+            digits_precision=consts.TEST_PRECISION,
+        )
 
     return _evaluate
 
@@ -206,11 +215,117 @@ class TestGreensWrapperCrossBackend:
             "nu_c": float(material_parameters["nu_c"]),
         }
 
+        def _compute_integrals_fortran_python():
+            normx = float(np.linalg.norm(position))
+            normx_mp = mp.mpf(normx)
+            omega_complex = complex(frequency)
+            normx_complex = complex(normx)
+
+            integrator_fortran = IntegratorFortran(
+                rho=material_params["rho"],
+                lam=material_params["lam"],
+                mu=material_params["mu"],
+                nu=material_params["nu"],
+                J=material_params["J"],
+                lam_c=material_params["lam_c"],
+                mu_c=material_params["mu_c"],
+                nu_c=material_params["nu_c"],
+            )
+
+            integrator_python = Integrator(
+                rho=material_parameters["rho"],
+                lam=material_parameters["lam"],
+                mu=material_parameters["mu"],
+                nu=material_parameters["nu"],
+                J=material_parameters["J"],
+                lam_c=material_parameters["lam_c"],
+                mu_c=material_parameters["mu_c"],
+                nu_c=material_parameters["nu_c"],
+                digits_precision=consts.TEST_PRECISION,
+            )
+
+            def _branch_integrals_fortran(omega_value, normx_value, branch):
+                return {
+                    "integral_3_0": integrator_fortran.integral_3_0(
+                        omega_value, normx_value, branch
+                    ),
+                    "integral_3_2": integrator_fortran.integral_3_2(
+                        omega_value, normx_value, branch
+                    ),
+                    "integral_2_1": integrator_fortran.integral_2_1(
+                        omega_value, normx_value, branch
+                    ),
+                    "integral_1_0": integrator_fortran.integral_1_0(
+                        omega_value, normx_value, branch
+                    ),
+                }
+
+            def _branch_integrals_python(omega_value, normx_value, branch):
+                return {
+                    "integral_3_0": integrator_python.integral_3_0(
+                        normx_value, omega_value, branch
+                    ),
+                    "integral_3_2": integrator_python.integral_3_2(
+                        normx_value, omega_value, branch
+                    ),
+                    "integral_2_1": integrator_python.integral_2_1(
+                        normx_value, omega_value, branch
+                    ),
+                    "integral_1_0": integrator_python.integral_1_0(
+                        normx_value, omega_value, branch
+                    ),
+                }
+
+            x_2d = [float(position[0]), float(position[1])]
+            greens_fortran = {
+                "P": np.array(
+                    integrator_fortran.greens_x_omega_P(x_2d, omega_complex),
+                    dtype=np.complex128,
+                ),
+                "plus": np.array(
+                    integrator_fortran.greens_x_omega_plus(x_2d, omega_complex),
+                    dtype=np.complex128,
+                ),
+                "minus": np.array(
+                    integrator_fortran.greens_x_omega_minus(x_2d, omega_complex),
+                    dtype=np.complex128,
+                ),
+            }
+            greens_python = {
+                "P": integrator_python.greens_x_omega_P(position, frequency),
+                "plus": integrator_python.greens_x_omega_plus(position, frequency),
+                "minus": integrator_python.greens_x_omega_minus(position, frequency),
+            }
+
+            integrals_fortran = {
+                "plus": _branch_integrals_fortran(
+                    omega_complex, normx_complex, consts.PLUS_BRANCH
+                ),
+                "minus": _branch_integrals_fortran(
+                    omega_complex, normx_complex, -consts.PLUS_BRANCH
+                ),
+            }
+            integrals_python = {
+                "plus": _branch_integrals_python(
+                    frequency, normx_mp, consts.PLUS_BRANCH
+                ),
+                "minus": _branch_integrals_python(
+                    frequency, normx_mp, -consts.PLUS_BRANCH
+                ),
+            }
+
+            return integrals_fortran, integrals_python, greens_fortran, greens_python
+
         # Get results from both backends
         G_fortran = evaluate_greens_fortran(
             position, np.array([frequency]), material_params
         )[0]
-        G_python = evaluate_greens_python(position, frequency, material_parameters)
+        G_python = evaluate_greens_python(
+            position,
+            frequency,
+            material_parameters,
+            digits_precision=consts.TEST_PRECISION,
+        )
 
         # Compare with relaxed tolerance (numerical precision + integration error)
         eps = np.finfo(np.float64).eps
@@ -231,6 +346,20 @@ class TestGreensWrapperCrossBackend:
                 max_error = max(abs_tol, rel_tol * max_mag)
 
                 # Use larger tolerance for cross-backend comparison
-                assert error <= max_error * 10, (
-                    f"Backend mismatch at [{i},{j}]: Fortran={f_val}, Python={p_val}"
-                )
+                if error > max_error * 10:
+                    (
+                        integrals_fortran,
+                        integrals_python,
+                        greens_fortran,
+                        greens_python,
+                    ) = _compute_integrals_fortran_python()
+                    err = (
+                        f"Backend mismatch at [{i},{j}]: Fortran={f_val}, Python={p_val}"
+                        f"Fortran array:\n{G_fortran}"
+                        f"Python array:\n{G_python}"
+                        f"Fortran integrals:\n{integrals_fortran}"
+                        f"Python integrals:\n{integrals_python}"
+                        f"Fortran components:\n{greens_fortran}"
+                        f"Python components:\n{greens_python}"
+                    )
+                    raise AssertionError(err)
