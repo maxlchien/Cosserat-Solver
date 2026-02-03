@@ -576,11 +576,12 @@ end function hankel1
     ! Threshold for OpenMP parallelization
     ! For small arrays, the overhead is not worth it
     ! force_use_openmp and force_no_openmp are mutually exclusive
-    if (present(force_use_openmp) .and. present(force_no_openmp)) then
+    if (present(force_use_openmp) .and. force_use_openmp .and. present(force_no_openmp) &
+     .and. force_no_openmp) then
       error stop "force_use_openmp and force_no_openmp are mutually exclusive"
-    else if (present(force_use_openmp)) then
+    else if (present(force_use_openmp) .and. force_use_openmp) then
       use_openmp = .true.
-    else if (present(force_no_openmp)) then
+    else if (present(force_no_openmp) .and. force_no_openmp) then
       use_openmp = .false.
     else
       ! Auto-decide: use OpenMP only for large arrays
