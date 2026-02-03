@@ -41,8 +41,26 @@ def main() -> None:
         action="store_true",
         help="Explicitly use Python backend (slower, arbitrary precision). Disables Fortran.",
     )
+    parser.add_argument(
+        "--force-use-openmp",
+        action="store_true",
+        help="Force OpenMP parallelization even for small arrays (incompatible with --force-no-openmp).",
+    )
+    parser.add_argument(
+        "--force-no-openmp",
+        action="store_true",
+        help="Disable OpenMP parallelization even for large arrays (incompatible with --force-use-openmp).",
+    )
 
     args = parser.parse_args()
+
+    # Validate mutually exclusive OpenMP flags
+    if args.force_use_openmp and args.force_no_openmp:
+        print(
+            "ERROR: --force-use-openmp and --force-no-openmp are mutually exclusive.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
 
     # Handle backend selection
     use_fortran = True
@@ -109,4 +127,6 @@ def main() -> None:
             trace_prefix=f"AA.S{str(i + 1).zfill(4)}.S2",
             save_to_file=True,
             use_fortran=use_fortran,
+            force_use_openmp=args.force_use_openmp,
+            force_no_openmp=args.force_no_openmp,
         )

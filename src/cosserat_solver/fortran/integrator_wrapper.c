@@ -324,6 +324,14 @@ void greens_x_omega(
     double lam_c, double mu_c, double nu_c,
     double complex G[3*3]
 );
+void greens_x_omega_vectorized(
+    double x[2],
+    double omega_re[], double omega_im[], int32_t n_omega,
+    double rho, double lam, double mu, double nu, double J,
+    double lam_c, double mu_c, double nu_c,
+    int force_use_openmp, int force_no_openmp,
+    double complex G[/* n_omega * 3 * 3 */]
+);
 
 /* ============================================================
    LowLevelCallable support for integrands
@@ -683,6 +691,107 @@ DEFINE_GREENS_WRAPPER(greens_x_omega_plus)
 DEFINE_GREENS_WRAPPER(greens_x_omega_minus)
 DEFINE_GREENS_WRAPPER(greens_x_omega)
 
+/* Vectorized Green's function wrapper */
+static PyObject* py_greens_x_omega_vectorized(PyObject* self, PyObject* args) {
+    PyObject* x_obj;
+    PyObject* omega_obj;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int force_use_openmp = 0;  /* Default: auto-decide */
+    int force_no_openmp = 0;   /* Default: auto-decide */
+    double x[2];
+
+    if (!PyArg_ParseTuple(args, "OOddddddddii", &x_obj, &omega_obj,
+                          &rho, &lam, &mu, &nu, &J,
+                          &lam_c, &mu_c, &nu_c, &force_use_openmp, &force_no_openmp)) {
+        return NULL;
+    }
+
+    /* Extract x */
+    if (!PySequence_Check(x_obj) || PySequence_Size(x_obj) != 2) {
+        PyErr_SetString(PyExc_ValueError, "x must be sequence of length 2");
+        return NULL;
+    }
+    for (int i = 0; i < 2; ++i) {
+        PyObject* item = PySequence_GetItem(x_obj, i);
+        if (!PyFloat_Check(item)) {
+            PyErr_SetString(PyExc_ValueError, "x elements must be float");
+            Py_DECREF(item);
+            return NULL;
+        }
+        x[i] = PyFloat_AsDouble(item);
+        Py_DECREF(item);
+    }
+
+    /* Extract omega array */
+    if (!PySequence_Check(omega_obj)) {
+        PyErr_SetString(PyExc_ValueError, "omega must be a sequence");
+        return NULL;
+    }
+
+    Py_ssize_t n_omega = PySequence_Size(omega_obj);
+    if (n_omega <= 0) {
+        PyErr_SetString(PyExc_ValueError, "omega array must have at least one element");
+        return NULL;
+    }
+
+    /* Allocate arrays for real and imaginary parts */
+    double* omega_re = (double*)malloc(n_omega * sizeof(double));
+    double* omega_im = (double*)malloc(n_omega * sizeof(double));
+    double complex* G = (double complex*)malloc(n_omega * 3 * 3 * sizeof(double complex));
+
+    if (!omega_re || !omega_im || !G) {
+        free(omega_re);
+        free(omega_im);
+        free(G);
+        return PyErr_NoMemory();
+    }
+
+    /* Extract omega values */
+    for (Py_ssize_t i = 0; i < n_omega; ++i) {
+        PyObject* omega_item = PySequence_GetItem(omega_obj, i);
+        if (!PyComplex_Check(omega_item)) {
+            PyErr_SetString(PyExc_ValueError, "omega elements must be complex");
+            Py_DECREF(omega_item);
+            free(omega_re);
+            free(omega_im);
+            free(G);
+            return NULL;
+        }
+        omega_re[i] = PyComplex_RealAsDouble(omega_item);
+        omega_im[i] = PyComplex_ImagAsDouble(omega_item);
+        Py_DECREF(omega_item);
+    }
+
+    /* Call Fortran routine */
+    greens_x_omega_vectorized(x, omega_re, omega_im, (int32_t)n_omega,
+                              rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+                              force_use_openmp, force_no_openmp, G);
+
+    /* Convert result to Python nested list/tuple */
+    PyObject* result = PyList_New(n_omega);
+    for (Py_ssize_t i = 0; i < n_omega; ++i) {
+        PyObject* matrix = PyTuple_New(3);
+        for (int row = 0; row < 3; ++row) {
+            PyObject* row_tuple = PyTuple_New(3);
+            for (int col = 0; col < 3; ++col) {
+                /* Access G[i, row, col] - Fortran column-major ordering */
+                double complex val = G[i * 9 + row + col * 3];
+                PyTuple_SET_ITEM(row_tuple, col,
+                    PyComplex_FromDoubles(creal(val), cimag(val)));
+            }
+            PyTuple_SET_ITEM(matrix, row, row_tuple);
+        }
+        PyList_SET_ITEM(result, i, matrix);
+    }
+
+    /* Clean up */
+    free(omega_re);
+    free(omega_im);
+    free(G);
+
+    return result;
+}
+
 /* ============================================================
    Module definition
    ============================================================ */
@@ -714,6 +823,7 @@ static PyMethodDef IntegratorMethods[] = {
     {"greens_x_omega_plus_c", py_greens_x_omega_plus, METH_VARARGS, "Green's function plus"},
     {"greens_x_omega_minus_c", py_greens_x_omega_minus, METH_VARARGS, "Green's function minus"},
     {"greens_x_omega_c", py_greens_x_omega, METH_VARARGS, "Green's function full"},
+    {"greens_x_omega_vectorized_c", py_greens_x_omega_vectorized, METH_VARARGS, "Vectorized Green's function"},
 
     {NULL, NULL, 0, NULL}
 };

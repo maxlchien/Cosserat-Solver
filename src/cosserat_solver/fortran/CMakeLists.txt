@@ -11,6 +11,14 @@ add_custom_command(
   VERBATIM
 )
 
+# --- Find OpenMP ---
+find_package(OpenMP)
+if(OpenMP_Fortran_FOUND)
+  message(STATUS "OpenMP found for Fortran: ${OpenMP_Fortran_FLAGS}")
+else()
+  message(WARNING "OpenMP not found. Vectorized operations will run serially.")
+endif()
+
 # --- Build dispersion_fortran library ---
 add_library(dispersion_fortran STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/kinds.f90
@@ -25,6 +33,12 @@ target_compile_options(dispersion_fortran PRIVATE
   -fdefault-real-8
   -fdefault-double-8
 )
+
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dispersion_fortran PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dispersion_fortran PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 set_target_properties(dispersion_fortran PROPERTIES
   POSITION_INDEPENDENT_CODE ON

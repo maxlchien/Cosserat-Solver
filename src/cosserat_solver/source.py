@@ -28,6 +28,20 @@ class SourceSpectrum(ABC):
         ...
 
     @abstractmethod
+    def spectrum_vectorized(self, omega_array: np.ndarray) -> np.ndarray:
+        """
+        The continuous Fourier transform of a source time function, defined by the convention
+        f_hat(omega) = int f(t) exp(+i omega t) dt
+
+        Parameters:
+            omega_array (np.ndarray): The frequencies at which to evaluate the spectrum.
+
+        Returns:
+            np.ndarray: The Fourier transform of the STF at the given frequencies.
+        """
+        ...
+
+    @abstractmethod
     def direction(self) -> np.ndarray:
         """
         Get the source direction vector based on the specified angle.

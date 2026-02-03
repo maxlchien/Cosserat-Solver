@@ -20,6 +20,8 @@ def generate_trace(
     trace_prefix="AA.S0001.S2",
     save_to_file=False,
     use_fortran=True,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
 ):
     """
     Generate a time-domain trace from the given parameters.
@@ -56,6 +58,10 @@ def generate_trace(
         Whether to save the generated trace to a file.
     use_fortran: bool
         Whether to use Fortran backend (faster) or Python backend (slower, higher precision). Default is True.
+    force_use_openmp: bool
+        If True, force OpenMP parallelization even for small arrays.
+    force_no_openmp: bool
+        If True, disable OpenMP parallelization even for large arrays.
 
     Returns:
     times: np.ndarray
@@ -76,6 +82,8 @@ def generate_trace(
         source,
         use_fortran=use_fortran,
         digits_precision=digits_precision,
+        force_use_openmp=force_use_openmp,
+        force_no_openmp=force_no_openmp,
     )
 
     if "t0" not in ft_params:

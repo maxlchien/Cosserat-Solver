@@ -642,4 +642,66 @@ contains
     G = G_loc
   end subroutine greens_x_omega_c
 
+  subroutine greens_x_omega_vectorized_c(x, omega_re, omega_im, n_omega, &
+      rho, lam, mu, nu, J, lam_c, mu_c, nu_c, force_use_openmp, force_no_openmp, &
+      G) &
+      bind(C, name="greens_x_omega_vectorized")
+    real(c_double), intent(in) :: x(2)
+    integer(c_int), value :: n_omega
+    real(c_double), intent(in) :: omega_re(n_omega), omega_im(n_omega)
+    real(c_double), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    logical(c_bool), value :: force_use_openmp, force_no_openmp
+    complex(c_double), intent(out) :: G(n_omega, 3, 3)
+
+    complex(rk), allocatable :: omega_array(:)
+    complex(rk), allocatable :: G_array(:,:,:)
+    real(rk) :: x_fortran(2)
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+    integer :: i
+    logical :: force_use, force_no
+
+    ! Allocate arrays
+    allocate(omega_array(n_omega))
+    allocate(G_array(n_omega, 3, 3))
+
+    ! Convert parameters
+    x_fortran = x
+    rho_q = real(rho, kind=rk)
+    lam_q = real(lam, kind=rk)
+    mu_q = real(mu, kind=rk)
+    nu_q = real(nu, kind=rk)
+    J_q = real(J, kind=rk)
+    lam_c_q = real(lam_c, kind=rk)
+    mu_c_q = real(mu_c, kind=rk)
+    nu_c_q = real(nu_c, kind=rk)
+    force_use = force_use_openmp
+    force_no = force_no_openmp
+
+    ! Convert omega array from separate real/imag arrays to complex
+    do i = 1, n_omega
+      omega_array(i) = cmplx(omega_re(i), omega_im(i), kind=rk)
+    end do
+
+    ! Call vectorized Fortran routine with conditional optional arguments
+    if (force_use) then
+      call greens_x_omega_vectorized(x_fortran, omega_array, n_omega, G_array, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q, &
+                                      force_use_openmp=.true.)
+    else if (force_no) then
+      call greens_x_omega_vectorized(x_fortran, omega_array, n_omega, G_array, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q, &
+                                      force_no_openmp=.true.)
+    else
+      call greens_x_omega_vectorized(x_fortran, omega_array, n_omega, G_array, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+    end if
+
+    ! Copy result
+    G = G_array
+
+    ! Deallocate
+    deallocate(omega_array)
+    deallocate(G_array)
+  end subroutine greens_x_omega_vectorized_c
+
 end module integrator_core_c

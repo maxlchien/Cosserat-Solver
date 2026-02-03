@@ -54,6 +54,26 @@ class Ricker(SourceSpectrum):
             * np.exp(-(omega**2) / (4.0 * np.pi**2 * self.f0**2))
         )
 
+    def spectrum_vectorized(self, omega_array: np.ndarray) -> np.ndarray:
+        """
+        Compute the frequency spectrum of the Ricker wavelet at multiple angular frequencies.
+
+        Parameters:
+        omega_array: np.ndarray
+            An array of angular frequencies in radians per second.
+
+        Returns:
+        np.ndarray
+            An array of complex amplitudes of the Ricker wavelet at the given frequencies.
+        """
+
+        return (
+            self.factor
+            * (omega_array**2)
+            / (2.0 * np.pi ** (5 / 2) * self.f0**3)
+            * np.exp(-(omega_array**2) / (4.0 * np.pi**2 * self.f0**2))
+        )
+
     def direction(self) -> np.ndarray:
         """
         Get the source direction vector based on the specified angle.

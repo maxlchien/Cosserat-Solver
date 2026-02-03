@@ -16,6 +16,7 @@ module integrator_core
   public :: greens_x_omega_plus
   public :: greens_x_omega_minus
   public :: greens_x_omega
+  public :: greens_x_omega_vectorized
 
   real(rk), parameter :: tol = 1e-12_rk
 
@@ -552,5 +553,55 @@ end function hankel1
 
     G = G_P + G_plus + G_minus
   end subroutine greens_x_omega
+
+  !-------------------------
+  ! Vectorized Green's function (all branches)
+  ! Computes Green's function for multiple omega values
+  ! Uses OpenMP for large arrays (n_omega > 1000)
+  !-------------------------
+  subroutine greens_x_omega_vectorized(x, omega_array, n_omega, G_array, &
+                                       rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+                                       force_use_openmp, force_no_openmp)
+    real(rk), intent(in) :: x(2)
+    integer, intent(in) :: n_omega
+    complex(rk), intent(in) :: omega_array(n_omega)
+    complex(rk), intent(out) :: G_array(n_omega, 3, 3)
+    real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+
+    integer :: i
+    complex(rk) :: G_loc(3,3)
+    logical, intent(in), optional :: force_use_openmp, force_no_openmp
+    logical :: use_openmp
+
+    ! Threshold for OpenMP parallelization
+    ! For small arrays, the overhead is not worth it
+    ! force_use_openmp and force_no_openmp are mutually exclusive
+    if (present(force_use_openmp) .and. present(force_no_openmp)) then
+      error stop "force_use_openmp and force_no_openmp are mutually exclusive"
+    else if (present(force_use_openmp)) then
+      use_openmp = .true.
+    else if (present(force_no_openmp)) then
+      use_openmp = .false.
+    else
+      ! Auto-decide: use OpenMP only for large arrays
+      use_openmp = (n_omega > 1000)
+    end if
+
+    if (use_openmp) then
+!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
+!$OMP& J, lam_c, mu_c, nu_c) SCHEDULE(DYNAMIC)
+      do i = 1, n_omega
+        call greens_x_omega(x, omega_array(i), G_loc, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+        G_array(i, :, :) = G_loc
+      end do
+!$OMP END PARALLEL DO
+      write (*,*) "OpenMP used for greens_x_omega_vectorized with n_omega =", n_omega
+    else
+      do i = 1, n_omega
+        call greens_x_omega(x, omega_array(i), G_loc, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+        G_array(i, :, :) = G_loc
+      end do
+    end if
+  end subroutine greens_x_omega_vectorized
 
 end module integrator_core

@@ -7,6 +7,7 @@ from __future__ import annotations
 import typing
 from ctypes import Structure, addressof, c_double, c_int32, c_void_p
 
+import numpy as np
 from scipy import LowLevelCallable
 
 try:
@@ -493,3 +494,86 @@ class IntegratorFortran:
             self.mu_c,
             self.nu_c,
         )
+
+    def greens_x_omega_vectorized(
+        self,
+        x: tuple | list,
+        omega: complex | np.ndarray,
+        force_use_openmp: bool = False,
+        force_no_openmp: bool = False,
+    ) -> np.ndarray:
+        """
+        Compute the Green's function G(x, omega) for all branches.
+
+        Automatically detects whether omega is scalar or array and handles appropriately.
+        Scalar inputs are converted to length-1 arrays internally for unified processing.
+
+        Parameters
+        ----------
+        x : tuple | list
+            2D position vector [x1, x2]
+        omega : complex | np.ndarray
+            Angular frequency (scalar) or array of angular frequencies
+        force_use_openmp : bool, default=False
+            If True, force OpenMP parallelization even for small arrays.
+            Mutually exclusive with force_no_openmp.
+        force_no_openmp : bool, default=False
+            If True, disable OpenMP parallelization even for large arrays.
+            Mutually exclusive with force_use_openmp.
+
+        Returns
+        -------
+        np.ndarray
+            If omega is scalar: shape (3, 3) complex array
+            If omega is array: shape (n_omega, 3, 3) complex array
+
+        Raises
+        ------
+        ValueError
+            If both force_use_openmp and force_no_openmp are True
+        """
+        # Validate mutual exclusivity
+        if force_use_openmp and force_no_openmp:
+            err = "force_use_openmp and force_no_openmp are mutually exclusive"
+            raise ValueError(err)
+
+        # Detect if omega is scalar or array
+        if np.isscalar(omega):
+            # Scalar case - wrap in array
+            omega_array = np.array([complex(omega)], dtype=np.complex128)
+            squeeze_output = True
+        else:
+            # Array case
+            omega_array = np.asarray(omega, dtype=np.complex128)
+            if omega_array.ndim != 1:
+                err = "omega must be scalar or 1D array"
+                raise ValueError(err)
+            squeeze_output = False
+
+        # Call vectorized Fortran backend
+        # Returns list of tuples (one per omega)
+        result_list = integrator_core.greens_x_omega_vectorized_c(
+            x,
+            omega_array,
+            self.rho,
+            self.lam,
+            self.mu,
+            self.nu,
+            self.J,
+            self.lam_c,
+            self.mu_c,
+            self.nu_c,
+            int(force_use_openmp),
+            int(force_no_openmp),
+        )
+
+        # Convert list of tuples to numpy array
+        n_omega = len(result_list)
+        result_array = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+        for i, matrix_tuple in enumerate(result_list):
+            result_array[i] = np.array(matrix_tuple, dtype=np.complex128)
+
+        # Return scalar result if input was scalar
+        if squeeze_output:
+            return result_array[0]
+        return result_array
