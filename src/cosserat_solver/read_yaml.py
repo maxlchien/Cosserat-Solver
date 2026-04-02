@@ -5,7 +5,9 @@ import yaml
 import cosserat_solver.consts as consts
 
 
-def read(file_path: str):
+def read(
+    file_path: str,
+) -> tuple[int, dict, dict, dict, int, list[tuple[float, float]]]:
     """
     Read a YAML file and return its contents as a dictionary.
 
@@ -14,6 +16,10 @@ def read(file_path: str):
         The path to the YAML file.
 
     Returns:
+
+    dim: int
+        The dimension of the problem (2 or 3).
+
     material_params: dict
         A dictionary containing the material parameters:
         - 'rho': Density
@@ -47,6 +53,11 @@ def read(file_path: str):
     with open(file_path) as file:
         data = yaml.safe_load(file)
 
+    dim = data.get("dimension", -1)
+    if dim not in (2, 3):
+        err = f"Invalid dimension {dim}. Dimension must be specified as either 2 or 3."
+        raise ValueError(err)
+
     material_params = data.get("material_params", {})
     source_params = data.get("source_params", {})
     ft_params = data.get("ft_params", {})
@@ -54,6 +65,7 @@ def read(file_path: str):
     seismogram_locations = data.get("seismogram_locations", [])
 
     return (
+        dim,
         material_params,
         source_params,
         ft_params,

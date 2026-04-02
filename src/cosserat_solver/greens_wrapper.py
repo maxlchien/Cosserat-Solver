@@ -40,8 +40,23 @@ def _validate_material_params(material_params: dict) -> None:
         raise ValueError(err)
 
 
+def _validate_dimension_python(dim: int) -> None:
+    """Validate that dimension is supported for Python evaluation."""
+    if dim not in (2, 3):
+        err = f"Invalid dimension {dim}. Python backend supports 2D and 3D problems."
+        raise ValueError(err)
+
+
+def _validate_dimension_fortran(dim: int) -> None:
+    """Validate that dimension is supported for Fortran evaluation."""
+    if dim != 2:
+        err = f"Invalid dimension {dim}. Fortran backend currently only supports 2D problems."
+        raise ValueError(err)
+
+
 def evaluate_greens_fortran(
     x: np.ndarray,
+    dim: int,
     omega_array: np.ndarray,
     material_params: dict,
 ) -> np.ndarray:
@@ -52,6 +67,8 @@ def evaluate_greens_fortran(
     ----------
     x : np.ndarray
         2D spatial location [x1, x2] where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     omega_array : np.ndarray
         Array of angular frequencies (real values)
     material_params : dict
@@ -68,6 +85,7 @@ def evaluate_greens_fortran(
         raise RuntimeError(err)
 
     _validate_material_params(material_params)
+    _validate_dimension_fortran(dim)
 
     # Create Fortran integrator
     integrator = IntegratorFortran(
@@ -81,18 +99,25 @@ def evaluate_greens_fortran(
         nu_c=material_params["nu_c"],
     )
 
-    # Ensure x is a list/tuple of length 2
-    x_2d = [float(x[0]), float(x[1])]
+    # Ensure x is a list/tuple of length dim, and of type float
+    x_nd = np.asarray(x, dtype=float)
+    if x_nd.shape != (dim,):
+        err = f"Spatial location x must have shape ({dim},) for dimension {dim}."
+        raise ValueError(err)
 
     # Evaluate for each omega
     n_omega = len(omega_array)
-    greens = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+    if dim == 2:
+        greens = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+    else:
+        err = f"Invalid dimension {dim}. Fortran backend currently only supports 2D problems."
+        raise ValueError(err)
 
     for i, omega in enumerate(omega_array):
         # Convert omega to complex
         omega_complex = complex(omega)
         # Get Green's function as nested tuple
-        G_tuple = integrator.greens_x_omega(x_2d, omega_complex)
+        G_tuple = integrator.greens_x_omega(x_nd, omega_complex)
         # Convert to numpy array
         greens[i] = np.array(G_tuple, dtype=np.complex128)
 
@@ -101,6 +126,7 @@ def evaluate_greens_fortran(
 
 def evaluate_greens_python(
     x: np.ndarray,
+    dim: int,
     omega: float,
     material_params: dict,
     digits_precision: int = consts.COMPUTE_PRECISION,
@@ -111,7 +137,9 @@ def evaluate_greens_python(
     Parameters
     ----------
     x : np.ndarray
-        2D spatial location where Green's function is evaluated
+        Spatial location where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     omega : float
         Angular frequency (scalar value)
     material_params : dict
@@ -122,25 +150,29 @@ def evaluate_greens_python(
     Returns
     -------
     greens : np.ndarray
-        Complex array of shape (3, 3)
+        Complex array of shape (3, 3) for 2D or (6, 6) for 3D
         Green's function at omega
     """
     _validate_material_params(material_params)
+    _validate_dimension_python(dim)
 
-    # Create Python integrator
-    integrator = Integrator(
-        rho=material_params["rho"],
-        lam=material_params["lam"],
-        mu=material_params["mu"],
-        nu=material_params["nu"],
-        J=material_params["J"],
-        lam_c=material_params["lam_c"],
-        mu_c=material_params["mu_c"],
-        nu_c=material_params["nu_c"],
-        digits_precision=digits_precision,
-    )
+    if dim == 2:
+        # Create Python integrator
+        integrator = Integrator(
+            rho=material_params["rho"],
+            lam=material_params["lam"],
+            mu=material_params["mu"],
+            nu=material_params["nu"],
+            J=material_params["J"],
+            lam_c=material_params["lam_c"],
+            mu_c=material_params["mu_c"],
+            nu_c=material_params["nu_c"],
+            digits_precision=digits_precision,
+        )
 
-    return integrator.greens_x_omega(x, omega)
+        return integrator.greens_x_omega(x, omega)
+    err = f"Invalid dimension {dim}. Python backend currently only supports 2D and 3D problems."
+    raise NotImplementedError(err)
 
 
 def get_greens_callback(

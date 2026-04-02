@@ -12,6 +12,7 @@ from cosserat_solver.source import SourceSpectrum
 
 def generate_trace(
     x,
+    dim: int,
     material_params: dict,
     source: SourceSpectrum,
     ft_params: dict,
@@ -27,6 +28,8 @@ def generate_trace(
     Arguments:
     x: np.ndarray
         The spatial location where the trace is computed.
+    dim: int
+        The dimension of the problem. Either 2 or 3.
     material_params: dict
         A dictionary containing the material parameters:
         - 'rho': Density
@@ -66,6 +69,13 @@ def generate_trace(
         - 'BXZ': Trace component in the Z direction.
         - 'BYY': Trace component in the rotation direction.
     """
+
+    if dim not in (2, 3):
+        err = f"Invalid dimension {dim}. Dimension must be either 2 or 3."
+        raise ValueError(err)
+    if len(x) != dim:
+        err = f"Spatial location x must have length {dim} for dimension {dim}."
+        raise ValueError(err)
 
     # for safety since we may edit this
     ft_params = ft_params.copy()
