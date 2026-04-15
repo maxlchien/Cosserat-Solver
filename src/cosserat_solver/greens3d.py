@@ -5,7 +5,7 @@ import numpy as np
 import cosserat_solver.dispersion3d as dispersion3d
 
 
-def greens_mixed_force(
+def greens_mixed_force_from_dict(
     x: np.ndarray,
     omega: float,
     material_params: dict,
@@ -14,25 +14,81 @@ def greens_mixed_force(
     Compute the Green's function for the response to a mixed force source in a 3D Cosserat medium.
 
     Parameters:
-    x: np.ndarray
-        The spatial location where the Green's function is evaluated. Should be a 3D vector.
-    omega: float
-        The angular frequency at which to evaluate the Green's function.
-    material_params: dict
-        A dictionary containing the material parameters:
-        - 'rho': Density
-        - 'lam': Lamé's first parameter
-        - 'mu': Shear modulus
-        - 'nu': Cosserat couple modulus
-        - 'J': Micro-inertia
-        - 'lam_c': Cosserat Lamé's first parameter
-        - 'mu_c': Cosserat shear modulus
-        - 'nu_c': Cosserat couple modulus
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        material_params: dict
+            A dictionary containing the material parameters:
+            - 'rho': Density
+            - 'lam': Lamé's first parameter
+            - 'mu': Shear modulus
+            - 'nu': Cosserat couple modulus
+            - 'J': Micro-inertia
+            - 'lam_c': Cosserat Lamé's first parameter
+            - 'mu_c': Cosserat shear modulus
+            - 'nu_c': Cosserat couple modulus
 
     Returns:
-    np.ndarray
-        A 6x6 complex array representing the Green's function for response to a mixed force source.
-        The indices correspond to (displacement component, rotation component).
+        np.ndarray
+            A 6x6 complex array representing the Green's function for response to a mixed force source.
+            The indices correspond to (displacement component, rotation component).
+    """
+
+    # Extract material parameters
+    rho = material_params["rho"]
+    lam = material_params["lam"]
+    mu = material_params["mu"]
+    nu = material_params["nu"]
+    J = material_params["J"]
+    lam_c = material_params["lam_c"]
+    mu_c = material_params["mu_c"]
+    nu_c = material_params["nu_c"]
+
+    return greens_mixed_force(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+
+
+def greens_mixed_force(
+    x: np.ndarray,
+    omega: float,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a mixed force source in a 3D Cosserat medium.
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x6 complex array representing the Green's function for response to a mixed force source.
+            The indices correspond to (displacement component, rotation component).
     """
 
     if len(x) != 3:
@@ -40,12 +96,14 @@ def greens_mixed_force(
         raise ValueError(err)
 
     G = np.zeros((6, 6), dtype=complex)
-    G[:, :3] = greens_displacement_force(x, omega, material_params)
-    G[:, 3:] = greens_rotation_force(x, omega, material_params)
+    G[:, :3] = greens_displacement_force(
+        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    )
+    G[:, 3:] = greens_rotation_force(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     return G
 
 
-def greens_displacement_force(
+def greens_displacement_force_from_dict(
     x: np.ndarray,
     omega: float,
     material_params: dict,
@@ -54,25 +112,25 @@ def greens_displacement_force(
     Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
 
     Parameters:
-    x: np.ndarray
-        The spatial location where the Green's function is evaluated. Should be a 3D vector.
-    omega: float
-        The angular frequency at which to evaluate the Green's function.
-    material_params: dict
-        A dictionary containing the material parameters:
-        - 'rho': Density
-        - 'lam': Lamé's first parameter
-        - 'mu': Shear modulus
-        - 'nu': Cosserat couple modulus
-        - 'J': Micro-inertia
-        - 'lam_c': Cosserat Lamé's first parameter
-        - 'mu_c': Cosserat shear modulus
-        - 'nu_c': Cosserat couple modulus
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        material_params: dict
+            A dictionary containing the material parameters:
+            - 'rho': Density
+            - 'lam': Lamé's first parameter
+            - 'mu': Shear modulus
+            - 'nu': Cosserat couple modulus
+            - 'J': Micro-inertia
+            - 'lam_c': Cosserat Lamé's first parameter
+            - 'mu_c': Cosserat shear modulus
+            - 'nu_c': Cosserat couple modulus
 
     Returns:
-    np.ndarray
-        A 6x3 complex array representing the Green's function for response to a displacement force source.
-        The indices correspond to (displacement component, rotation component).
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a displacement force source.
+            The indices correspond to (displacement component, rotation component).
     """
     # Extract material parameters
     rho = material_params["rho"]
@@ -84,6 +142,52 @@ def greens_displacement_force(
     mu_c = material_params["mu_c"]
     nu_c = material_params["nu_c"]
 
+    return greens_displacement_force(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+
+
+def greens_displacement_force(
+    x: np.ndarray,
+    omega: float,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a displacement force source.
+            The indices correspond to (displacement component, rotation component).
+    """
+
     if len(x) != 3:
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
         raise ValueError(err)
@@ -94,8 +198,15 @@ def greens_displacement_force(
         raise ValueError(err)
     R_hat = x / R
 
+    if omega == 0:
+        return greens_displacement_force_static(
+            x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
+
     # Compute squared velocities and cutoff frequency
-    _, c2_sq, _, c4_sq = dispersion3d.all_c_squared_from_dict(material_params)
+    _, c2_sq, _, c4_sq = dispersion3d.all_c_squared(
+        rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    )
     w0_sq = dispersion3d.w0_squared(rho, nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
@@ -108,6 +219,17 @@ def greens_displacement_force(
     A1 = 1 / (k2_sq - k1_sq) / (k4_sq - k1_sq)
     A2 = 1 / (k4_sq - k2_sq) / (k1_sq - k2_sq)
     A4 = 1 / (k1_sq - k4_sq) / (k2_sq - k4_sq)
+
+    # if k1_sq == k2_sq or k1_sq == k4_sq or k2_sq == k4_sq:
+    #     print(
+    #         "Warning: inf encountered in Green's function calculation. Replacing with large number."
+    #     )
+    #     A1 = (
+    #         A1 if np.isfinite(A1) else np.sign(A1) * 1e10
+    #     )  # TODO: find a better solution
+    #     A2 = A2 if np.isfinite(A2) else np.sign(A2) * 1e10
+    #     A4 = A4 if np.isfinite(A4) else np.sign(A4) * 1e10
+    #     # return np.full((6, 3), 0, dtype=complex)
 
     # -I_3 * \frac{\hat{f}_\omega}{r}\frac{\rho }{4\pi(\mu+\nu)}\frac{1}{k_4^2-k_2^2} *
     # \paren{e^{ik_2r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_2^2}-e^{ik_4r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_4^2}}
@@ -203,7 +325,60 @@ def greens_displacement_force(
     return G
 
 
-def greens_rotation_force(
+def greens_displacement_force_static(
+    x: np.ndarray,
+    _rho: float,
+    _lam: float,
+    _mu: float,
+    _nu: float,
+    _J: float,
+    _lam_c: float,
+    _mu_c: float,
+    _nu_c: float,
+) -> np.ndarray:
+    """Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium at zero frequency (static case).
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a displacement force source.
+    """
+    # This needs to be derived from Eringen's book and for now is implemented as a zero response
+
+    if len(x) != 3:
+        err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
+        raise ValueError(err)
+
+    R = np.linalg.norm(x)
+    if R == 0:
+        err = "Spatial location x cannot be the zero vector for Green's function evaluation."
+        raise ValueError(err)
+    _R_hat = x / R
+
+    # TODO: derive the correct static green's function
+    return np.zeros((6, 3), dtype=complex)
+
+
+def greens_rotation_force_from_dict(
     x: np.ndarray,
     omega: float,
     material_params: dict,
@@ -212,25 +387,25 @@ def greens_rotation_force(
     Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
 
     Parameters:
-    x: np.ndarray
-        The spatial location where the Green's function is evaluated. Should be a 3D vector.
-    omega: float
-        The angular frequency at which to evaluate the Green's function.
-    material_params: dict
-        A dictionary containing the material parameters:
-        - 'rho': Density
-        - 'lam': Lamé's first parameter
-        - 'mu': Shear modulus
-        - 'nu': Cosserat couple modulus
-        - 'J': Micro-inertia
-        - 'lam_c': Cosserat Lamé's first parameter
-        - 'mu_c': Cosserat shear modulus
-        - 'nu_c': Cosserat couple modulus
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        material_params: dict
+            A dictionary containing the material parameters:
+            - 'rho': Density
+            - 'lam': Lamé's first parameter
+            - 'mu': Shear modulus
+            - 'nu': Cosserat couple modulus
+            - 'J': Micro-inertia
+            - 'lam_c': Cosserat Lamé's first parameter
+            - 'mu_c': Cosserat shear modulus
+            - 'nu_c': Cosserat couple modulus
 
     Returns:
-    np.ndarray
-        A 6x3 complex array representing the Green's function for response to a rotation force source.
-        The indices correspond to (displacement component, rotation component).
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a rotation force source.
+            The indices correspond to (displacement component, rotation component).
     """
 
     # Extract material parameters
@@ -243,6 +418,52 @@ def greens_rotation_force(
     mu_c = material_params["mu_c"]
     nu_c = material_params["nu_c"]
 
+    return greens_rotation_force(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+
+
+def greens_rotation_force(
+    x: np.ndarray,
+    omega: float,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        omega: float
+            The angular frequency at which to evaluate the Green's function.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a rotation force source.
+            The indices correspond to (displacement component, rotation component).
+    """
+
     if len(x) != 3:
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
         raise ValueError(err)
@@ -253,12 +474,17 @@ def greens_rotation_force(
         raise ValueError(err)
     R_hat = x / R
 
+    if omega == 0:
+        return greens_rotation_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+
     # Compute squared velocities and cutoff frequency
-    _, c2_sq, c3_sq, _ = dispersion3d.all_c_squared_from_dict(material_params)
+    _, c2_sq, c3_sq, _ = dispersion3d.all_c_squared(
+        rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    )
     w0_sq = dispersion3d.w0_squared(rho, nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
-    _, k2_sq, k3_sq, k4_sq = dispersion3d.all_k(
+    _, k2_sq, k3_sq, k4_sq = dispersion3d.all_k_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     _, k2, k3, k4 = dispersion3d.all_k(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
@@ -323,7 +549,7 @@ def greens_rotation_force(
     )
 
     # I_3\frac{\rho j(\lambda_c+\mu_c-\nu_c)}{4\pi(\lambda_c+2\mu_c)(\mu_c+\nu_c)} *
-    # \sum_{n=2,3,4}B_n\paren{\frac{\omega^2-\omega_0^2}{c_2^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
+    # \sum_{n=2,3,4}B_n\paren{\frac{\omega^2}{c_2^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
     term2_prefactor = (
         rho
         * J
@@ -331,22 +557,13 @@ def greens_rotation_force(
         / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
     )
     term2_n2 = (
-        ((omega**2 - w0_sq) / c2_sq - k2_sq)
-        * (1j * k2 * R - 1)
-        * np.exp(1j * k2 * R)
-        / R**3
+        (omega**2 / c2_sq - k2_sq) * (1j * k2 * R - 1) * np.exp(1j * k2 * R) / R**3
     )
     term2_n3 = (
-        ((omega**2 - w0_sq) / c2_sq - k3_sq)
-        * (1j * k3 * R - 1)
-        * np.exp(1j * k3 * R)
-        / R**3
+        (omega**2 / c2_sq - k3_sq) * (1j * k3 * R - 1) * np.exp(1j * k3 * R) / R**3
     )
     term2_n4 = (
-        ((omega**2 - w0_sq) / c2_sq - k4_sq)
-        * (1j * k4 * R - 1)
-        * np.exp(1j * k4 * R)
-        / R**3
+        (omega**2 / c2_sq - k4_sq) * (1j * k4 * R - 1) * np.exp(1j * k4 * R) / R**3
     )
     term2 = (
         term2_prefactor
@@ -369,7 +586,7 @@ def greens_rotation_force(
     )
 
     # - \hat{r}\hat{r}^T \frac{\rho j(\lambda_c+\mu_c-\nu_c)}{4\pi(\lambda_c+2\mu_c)(\mu_c+\nu_c)} *
-    # \sum_{n=2,3,4} B_n  \paren{\frac{\omega^2-\omega_0^2}{c_2^2}-k_n^2}\paren{-k_n^2r^2-3ik_nr+3} \frac{e^{ik_nr}}{r^3}
+    # \sum_{n=2,3,4} B_n  \paren{\frac{\omega^2}{c_2^2}-k_n^2}\paren{-k_n^2r^2-3ik_nr+3} \frac{e^{ik_nr}}{r^3}
     term4_prefactor = (
         -rho
         * J
@@ -377,19 +594,19 @@ def greens_rotation_force(
         / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
     )
     term4_n2 = (
-        ((omega**2 - w0_sq) / c2_sq - k2_sq)
+        (omega**2 / c2_sq - k2_sq)
         * (-k2_sq * R**2 - 3j * k2 * R + 3)
         * np.exp(1j * k2 * R)
         / R**3
     )
     term4_n3 = (
-        ((omega**2 - w0_sq) / c2_sq - k3_sq)
+        (omega**2 / c2_sq - k3_sq)
         * (-k3_sq * R**2 - 3j * k3 * R + 3)
         * np.exp(1j * k3 * R)
         / R**3
     )
     term4_n4 = (
-        ((omega**2 - w0_sq) / c2_sq - k4_sq)
+        (omega**2 / c2_sq - k4_sq)
         * (-k4_sq * R**2 - 3j * k4 * R + 3)
         * np.exp(1j * k4 * R)
         / R**3
@@ -415,6 +632,59 @@ def greens_rotation_force(
     )
 
     G = np.zeros((6, 3), dtype=np.complex128)
-    G[3:, :] = displacement_term
-    G[:3, :] = term1 + term2 + term3 + term4 + term5
+    G[:3, :] = displacement_term
+    G[3:, :] = term1 + term2 + term3 + term4 + term5
     return G
+
+
+def greens_rotation_force_static(
+    x: np.ndarray,
+    _rho: float,
+    _lam: float,
+    _mu: float,
+    _nu: float,
+    _J: float,
+    _lam_c: float,
+    _mu_c: float,
+    _nu_c: float,
+) -> np.ndarray:
+    """Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium at zero frequency (static case).
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a rotation force source.
+    """
+    # This needs to be derived from Eringen's book and for now is implemented as a zero response
+
+    if len(x) != 3:
+        err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
+        raise ValueError(err)
+
+    R = np.linalg.norm(x)
+    if R == 0:
+        err = "Spatial location x cannot be the zero vector for Green's function evaluation."
+        raise ValueError(err)
+    _R_hat = x / R
+
+    # TODO: derive the correct static green's function
+    return np.zeros((6, 3), dtype=complex)

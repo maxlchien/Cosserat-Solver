@@ -26,6 +26,7 @@ except ImportError:
         from cosserat_solver._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
+import cosserat_solver.greens3d as greens3d
 from cosserat_solver import consts
 from cosserat_solver.integrator import Integrator
 from cosserat_solver.source import SourceSpectrum
@@ -177,6 +178,7 @@ def evaluate_greens_python(
 
 def get_greens_callback(
     x: np.ndarray,
+    dim: int,
     material_params: dict,
     source: SourceSpectrum,
     use_fortran: bool = True,
@@ -192,6 +194,8 @@ def get_greens_callback(
     ----------
     x : np.ndarray
         2D spatial location where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     material_params : dict
         Material parameters (rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     source : SourceSpectrum
@@ -217,6 +221,7 @@ def get_greens_callback(
 
     # Try to use Fortran backend
     if use_fortran and FORTRAN_AVAILABLE:
+        _validate_dimension_fortran(dim)
         # Create integrator once for reuse
         try:
             integrator_fortran = IntegratorFortran(
@@ -276,46 +281,98 @@ def get_greens_callback(
             )
 
     # Fall back to Python backend
-    integrator_python = Integrator(
-        rho=material_params["rho"],
-        lam=material_params["lam"],
-        mu=material_params["mu"],
-        nu=material_params["nu"],
-        J=material_params["J"],
-        lam_c=material_params["lam_c"],
-        mu_c=material_params["mu_c"],
-        nu_c=material_params["nu_c"],
-        digits_precision=digits_precision,
-    )
+    _validate_dimension_python(dim)
 
-    def python_callback(omega: float) -> np.ndarray:
-        """
-        Scalar evaluation using Python/mpmath backend.
+    if dim == 2:
+        integrator_python = Integrator(
+            rho=material_params["rho"],
+            lam=material_params["lam"],
+            mu=material_params["mu"],
+            nu=material_params["nu"],
+            J=material_params["J"],
+            lam_c=material_params["lam_c"],
+            mu_c=material_params["mu_c"],
+            nu_c=material_params["nu_c"],
+            digits_precision=digits_precision,
+        )
 
-        Parameters
-        ----------
-        omega : float
-            Angular frequency (must be scalar)
+        def python_callback_2d(omega: float) -> np.ndarray:
+            """
+            Scalar evaluation using Python/mpmath backend in 2D.
 
-        Returns
-        -------
-        spectrum : np.ndarray
-            Shape (3, 3) array of Green's function spectrum times source magnitude
-        """
-        if isinstance(omega, np.ndarray):
-            err = (
-                "Python backend only supports scalar omega. "
-                "Use Fortran backend for vectorized evaluation."
+            Parameters
+            ----------
+            omega : float
+                Angular frequency (must be scalar)
+
+            Returns
+            -------
+            spectrum : np.ndarray
+                Shape (3, 3) array of Green's function spectrum times source magnitude
+            """
+            if isinstance(omega, np.ndarray):
+                err = (
+                    "Python backend only supports scalar omega. "
+                    "Use Fortran backend for vectorized evaluation."
+                )
+                raise ValueError(err)
+
+            # Evaluate Green's function
+            G_omega = integrator_python.greens_x_omega(x, omega)
+
+            # Get source spectrum
+            source_mag = source.spectrum(omega)
+
+            # Multiply by source magnitude: G * source_magnitude
+            return G_omega * source_mag
+
+        return python_callback_2d
+
+    if dim == 3:
+        # unpack material parameters
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+        nu = material_params["nu"]
+        J = material_params["J"]
+        lam_c = material_params["lam_c"]
+        mu_c = material_params["mu_c"]
+        nu_c = material_params["nu_c"]
+
+        def python_callback_3d(omega: float) -> np.ndarray:
+            """
+            Scalar evaluation using Python/mpmath backend for 3D.
+
+            Parameters
+            ----------
+            omega : float
+                Angular frequency (must be scalar)
+
+            Returns
+            -------
+            spectrum : np.ndarray
+                Shape (6, 6) array of Green's function spectrum times source spectrum
+            """
+            # TODO: check if the python impl for 3d works with vectors
+            if isinstance(omega, np.ndarray):
+                err = (
+                    "Python backend only supports scalar omega. "
+                    "Use Fortran backend for vectorized evaluation."
+                )
+                raise ValueError(err)
+
+            # Evaluate Green's function
+            G_omega = greens3d.greens_mixed_force(
+                x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
             )
-            raise ValueError(err)
 
-        # Evaluate Green's function
-        G_omega = integrator_python.greens_x_omega(x, omega)
+            # Get source spectrum
+            source_mag = source.spectrum(omega)
 
-        # Get source spectrum
-        source_mag = source.spectrum(omega)
+            # Multiply by source magnitude: G * source_magnitude
+            return G_omega * source_mag
 
-        # Multiply by source magnitude: G * source_magnitude
-        return G_omega * source_mag
+        return python_callback_3d
 
-    return python_callback
+    err = f"Invalid dimension {dim}. Python backend currently only supports 2D and 3D problems."
+    raise NotImplementedError(err)

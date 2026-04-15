@@ -197,9 +197,19 @@ def all_k(
     k1_sq, k2_sq, k3_sq, k4_sq = all_k_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
+    k1 = np.emath.sqrt(k1_sq)
+    k2 = np.emath.sqrt(k2_sq)
+    k3 = np.emath.sqrt(k3_sq)
+    k4 = np.emath.sqrt(k4_sq)
+    sign = np.sign(omega)
+    k1 *= sign
+    k2 *= sign
+    k3 *= sign
+    k4 *= sign
+    # TODO: address this properly
     return (
-        np.sqrt(k1_sq),
-        np.sqrt(k2_sq),
-        np.sqrt(k3_sq),
-        np.sqrt(k4_sq),
+        k1,
+        k2,
+        k3,
+        k4,
     )
