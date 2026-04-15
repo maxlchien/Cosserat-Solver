@@ -58,7 +58,7 @@ def read(
         err = f"Invalid dimension {dim}. Dimension must be specified as either 2 or 3."
         raise ValueError(err)
 
-    material_params = data.get("material_params", {})
+    material_params = convert_material_params_to_float(data.get("material_params", {}))
     source_params = data.get("source_params", {})
     ft_params = data.get("ft_params", {})
     digits_precision = data.get("digits_precision", consts.COMPUTE_PRECISION)
@@ -72,3 +72,20 @@ def read(
         digits_precision,
         seismogram_locations,
     )
+
+
+def convert_material_params_to_float(
+    material_params: dict,
+) -> dict:
+    """
+    Convert all material parameters in the dictionary to float.
+
+    Parameters:
+    material_params: dict
+        A dictionary containing the material parameters.
+
+    Returns:
+    dict
+        A new dictionary with all material parameters converted to float.
+    """
+    return {key: float(value) for key, value in material_params.items()}

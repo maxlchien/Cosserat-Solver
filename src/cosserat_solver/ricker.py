@@ -88,6 +88,8 @@ class Ricker3D(SourceSpectrum):
     Parameters:
         f0 (float):
             The dominant frequency of the Ricker wavelet in Hz.
+        factor: float
+            A scaling factor for the amplitude.
         f (np.ndarray):
             The displacement scaling factor. Specified as an array
             [f_x, f_y, f_z] for the 3D case.
@@ -99,10 +101,15 @@ class Ricker3D(SourceSpectrum):
     """
 
     def __init__(self, ricker_params: dict):
-        self.f0 = ricker_params.get("f0", 25.0)  # in Hz
+        self.f0 = float(ricker_params.get("f0", 25.0))  # in Hz
         self.omega0 = 2 * np.pi * self.f0
-        self.displacement_factors = np.array(ricker_params.get("f", [1.0, 1.0, 1.0]))
-        self.rotation_factors = np.array(ricker_params.get("fc", [1.0, 1.0, 1.0]))
+        self.factor = float(ricker_params.get("factor", 1.0))
+        self.displacement_factors = np.array(
+            [float(x) for x in ricker_params.get("f", [1.0, 1.0, 1.0])]
+        )
+        self.rotation_factors = np.array(
+            [float(x) for x in ricker_params.get("fc", [1.0, 1.0, 1.0])]
+        )
 
         self.start_time = ricker_params.get("t0", -1.2 / self.f0)
 
@@ -120,7 +127,8 @@ class Ricker3D(SourceSpectrum):
         """
 
         return (
-            (omega**2)
+            self.factor
+            * (omega**2)
             / (2.0 * np.pi ** (5 / 2) * self.f0**3)
             * np.exp(-(omega**2) / (4.0 * np.pi**2 * self.f0**2))
         )

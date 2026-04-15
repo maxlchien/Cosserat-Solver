@@ -9,6 +9,9 @@ import cosserat_solver.fourier as fourier
 from cosserat_solver.greens_wrapper import get_greens_callback
 from cosserat_solver.source import SourceSpectrum
 
+channels_2d = ["BXX.semd", "BXZ.semd", "BXY.semr"]
+channels_3d = ["BXX.semd", "BXY.semd", "BXZ.semd", "BXX.semr", "BXY.semr", "BXZ.semr"]
+
 
 def generate_trace(
     x,
@@ -65,9 +68,18 @@ def generate_trace(
         The time samples corresponding to the trace.
     traces: dict
         A dictionary containing the trace components:
-        - 'BXX': Trace component in the X direction.
-        - 'BXZ': Trace component in the Z direction.
-        - 'BYY': Trace component in the rotation direction.
+        In 2D:
+        - 'BXX.semd': Trace component in the X direction.
+        - 'BXZ.semd': Trace component in the Z direction.
+        - 'BXY.semr': Trace component in the rotation direction.
+
+        In 3D:
+        - 'BXX.semd': Trace component in the X direction.
+        - 'BXY.semd': Trace component in the Y direction.
+        - 'BXZ.semd': Trace component in the Z direction.
+        - 'BXX.semr': Trace component in the X rotation direction.
+        - 'BXY.semr': Trace component in the Y rotation direction.
+        - 'BXZ.semr': Trace component in the Z rotation direction.
     """
 
     if dim not in (2, 3):
@@ -82,6 +94,7 @@ def generate_trace(
 
     frequency_domain_func = get_greens_callback(
         x,
+        dim,
         material_params,
         source,
         use_fortran=use_fortran,
@@ -94,24 +107,21 @@ def generate_trace(
     times, greens_time = fourier.cont_ifft(frequency_domain_func, ft_params)
 
     # Project onto source direction
-    source_dir = source.direction()  # shape (3,)
-    trace = np.einsum("tij,j->ti", greens_time, source_dir)  # shape (N, 3)
+    source_dir = source.direction()  # shape (3,) or (6,)
+    trace = np.einsum("tij,j->ti", greens_time, source_dir)  # shape (N, 3) or (N, 6)
 
-    traces = {
-        "BXX": np.real(trace[:, 0]),
-        "BXZ": np.real(trace[:, 1]),
-        "BXY": np.real(trace[:, 2]),
-    }
+    channels = channels_2d if dim == 2 else channels_3d
+
+    traces = {channel: np.real(trace[:, i]) for i, channel in enumerate(channels)}
 
     if save_to_file:
-        components = [("BXX", "semd"), ("BXZ", "semd"), ("BXY", "semr")]
-        for channel, ext in components:
+        for channel in channels:
             if output_dir != ".":
                 if not os.path.exists(output_dir):
                     os.makedirs(output_dir)
-                filename = f"{output_dir}/{trace_prefix}.{channel}.{ext}"
+                filename = f"{output_dir}/{trace_prefix}.{channel}"
             else:
-                filename = f"{trace_prefix}.{channel}.{ext}"
+                filename = f"{trace_prefix}.{channel}"
 
             with open(filename, "w") as f:
                 for t, val in zip(times, traces[channel], strict=False):
