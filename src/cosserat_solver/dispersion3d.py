@@ -58,9 +58,9 @@ def all_c_squared_from_dict(material_params: dict) -> tuple[float, float, float,
     )
 
 
-def w0_squared(rho: float, nu: float, J: float) -> float:
+def w0_squared(nu: float, J: float) -> float:
     """Calculate the squared cutoff frequency w0^2 for the 3D Cosserat medium."""
-    return 4 * nu / (rho * J)
+    return 4 * nu / J
 
 
 def dispersion_r(
@@ -77,14 +77,14 @@ def dispersion_r(
     """Calculate the r coefficient in the dispersion relation for k_2, k_4.
 
     This is computed by
-    r = (1 + c_2^2 / c_4^2) * (omega^2 / c_2^2) * (1/2) - (1 - J * w_0^2 / (4 * c_2^2)) * w_0^2 / (2 * c_4^2)
+    r = (1 + c_2^2 / c_4^2) * (omega^2 / c_2^2) * (1/2) - (1 - J * w_0^2 / (4 * rho * c_2^2)) * w_0^2 / (2 * c_4^2)
 
     as according to Eringen (1999) equation (5.11.20).
     """
     _, c2_sq, _, c4_sq = all_c_squared(rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
-    w0_sq = w0_squared(rho, nu, J)
+    w0_sq = w0_squared(nu, J)
     term1 = (1 + c2_sq / c4_sq) * (omega**2 / c2_sq) * (1 / 2)
-    term2 = (1 - J * w0_sq / (4 * c2_sq)) * w0_sq / (2 * c4_sq)
+    term2 = (1 - J * w0_sq / (4 * rho * c2_sq)) * w0_sq / (2 * c4_sq)
     return term1 - term2
 
 
@@ -107,7 +107,7 @@ def dispersion_s(
     as according to Eringen (1999) equation (5.11.20).
     """
     _, c2_sq, _, c4_sq = all_c_squared(rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
-    w0_sq = w0_squared(rho, nu, J)
+    w0_sq = w0_squared(nu, J)
     return (omega**2 / c2_sq) * (omega**2 / c4_sq - w0_sq / c4_sq)
 
 
@@ -135,14 +135,13 @@ def k2_squared(
 
 def k3_squared(
     omega: float,
-    rho: float,
     nu: float,
     J: float,
     lam_c: float,
     mu_c: float,
 ) -> float:
     """Calculate the squared wavenumber k3^2 for the 3D Cosserat medium."""
-    return (omega**2 - w0_squared(rho, nu, J)) / c3_squared(J, lam_c, mu_c)
+    return (omega**2 - w0_squared(nu, J)) / c3_squared(J, lam_c, mu_c)
 
 
 def k4_squared(
@@ -177,7 +176,7 @@ def all_k_squared(
     return (
         k1_squared(omega, rho, lam, mu),
         k2_squared(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c),
-        k3_squared(omega, rho, nu, J, lam_c, mu_c),
+        k3_squared(omega, nu, J, lam_c, mu_c),
         k4_squared(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c),
     )
 

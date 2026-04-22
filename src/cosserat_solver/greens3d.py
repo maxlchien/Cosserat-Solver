@@ -207,7 +207,7 @@ def greens_displacement_force(
     _, c2_sq, _, c4_sq = dispersion3d.all_c_squared(
         rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    w0_sq = dispersion3d.w0_squared(rho, nu, J)
+    w0_sq = dispersion3d.w0_squared(nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
     k1_sq, k2_sq, _, k4_sq = dispersion3d.all_k_squared(
@@ -220,21 +220,10 @@ def greens_displacement_force(
     A2 = 1 / (k4_sq - k2_sq) / (k1_sq - k2_sq)
     A4 = 1 / (k1_sq - k4_sq) / (k2_sq - k4_sq)
 
-    # if k1_sq == k2_sq or k1_sq == k4_sq or k2_sq == k4_sq:
-    #     print(
-    #         "Warning: inf encountered in Green's function calculation. Replacing with large number."
-    #     )
-    #     A1 = (
-    #         A1 if np.isfinite(A1) else np.sign(A1) * 1e10
-    #     )  # TODO: find a better solution
-    #     A2 = A2 if np.isfinite(A2) else np.sign(A2) * 1e10
-    #     A4 = A4 if np.isfinite(A4) else np.sign(A4) * 1e10
-    #     # return np.full((6, 3), 0, dtype=complex)
-
     # -I_3 * \frac{\hat{f}_\omega}{r}\frac{\rho }{4\pi(\mu+\nu)}\frac{1}{k_4^2-k_2^2} *
     # \paren{e^{ik_2r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_2^2}-e^{ik_4r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_4^2}}
-    term1_prefactor = rho / (4 * np.pi * R * (mu + nu))
-    # TODO: why negative?
+    term1_prefactor = 1 / (4 * np.pi * R * (mu + nu))
+    # TODO: why not negative?
     term1 = (
         term1_prefactor
         * (
@@ -249,7 +238,7 @@ def greens_displacement_force(
 
     # I_3 * \frac{\rho\paren{\lambda+\mu-\nu}}{4\pi(\lambda+2\mu)(\mu+\nu)} *
     # \sum_{n=1,2,4} A_n \paren{\frac{\omega^2-\omega_0^2}{c_4^2}-\frac{j\omega_0^2}{4c_2^2c_4^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
-    term2_prefactor = -rho * (lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
+    term2_prefactor = -(lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
     # TODO: why negative?
     term2_n1 = (
         ((omega**2 - w0_sq) / c4_sq - J * w0_sq / (4 * c2_sq * c4_sq) - k1_sq)
@@ -277,7 +266,7 @@ def greens_displacement_force(
 
     # - \hat{r} \hat{r}^T \frac{\rho\paren{\lambda+\mu-\nu}}{4\pi(\lambda+2\mu)(\mu+\nu)} *
     # \sum_{n=1,2,4} A_n \paren{\frac{\omega^2-\omega_0^2}{c_4^2}-\frac{j\omega_0^2}{4c_2^2c_4^2}-k_n^2}\paren{-k_n^2r^2-3ik_nr+3} \frac{e^{ik_nr}}{r^3}
-    term3_prefactor = -rho * (lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
+    term3_prefactor = -(lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
     term3_n1 = (
         ((omega**2 - w0_sq) / c4_sq - J * w0_sq / (4 * c2_sq * c4_sq) - k1_sq)
         * (-k1_sq * R**2 - 3j * k1 * R + 3)
@@ -303,7 +292,7 @@ def greens_displacement_force(
     )
 
     # [\hat{r}\times -] \frac{1}{r^2} \frac{\rho \nu}{2\pi(\mu+\nu)(\mu_c+\nu_c)}\frac{1}{k_4^2-k_2^2}\paren{(ik_2r-1)e^{ik_2r}-(ik_4r-1)e^{ik_4r}}
-    rotation_term_prefactor = -rho * nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
+    rotation_term_prefactor = -nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
     # TODO: why negative?
     rotation_term = (
         rotation_term_prefactor
@@ -325,11 +314,7 @@ def greens_displacement_force(
     G[:3, :] = term1 + term2 + term3
     G[3:, :] = rotation_term
 
-    return (
-        G / rho
-    )  # for some reason Eringen uses different conventions for displacement and rotation forces,
-    # so the force in SPECFEMPP is actually rho times what Eringen expects.
-    # here we undo it so the formula gets what Eringen wanted.
+    return G
 
 
 def greens_displacement_force_static(
@@ -475,8 +460,6 @@ def greens_rotation_force(
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
         raise ValueError(err)
 
-    J = J / rho  # eringen's formulation has j given by our j*rho
-
     R = np.linalg.norm(x)
     if R == 0:
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
@@ -490,7 +473,7 @@ def greens_rotation_force(
     _, c2_sq, c3_sq, _ = dispersion3d.all_c_squared(
         rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    w0_sq = dispersion3d.w0_squared(rho, nu, J)
+    w0_sq = dispersion3d.w0_squared(nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
     _, k2_sq, k3_sq, k4_sq = dispersion3d.all_k_squared(
@@ -506,8 +489,9 @@ def greens_rotation_force(
     # [\hat{r} \times -]\frac{1}{r^2}\frac{\rho j \nu}{2\pi(\mu+\nu)(\mu_c+\nu_c)} *
     # \sum_{n=2,3,4}B_n \paren{\frac{\omega^2-\omega_0^2}{c_3^2}-k_n^2}\paren{ik_nr-1}e^{ik_nr}
     displacement_term_prefactor = (
-        rho * J * nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
+        -J * nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
     )
+    # TODO: why negative?
     displacement_term_n2 = (
         ((omega**2 - w0_sq) / c3_sq - k2_sq) * (1j * k2 * R - 1) * np.exp(1j * k2 * R)
     )
@@ -535,7 +519,8 @@ def greens_rotation_force(
 
     # -I_3\frac{1}{r} \frac{\rho j}{4\pi(\mu_c+\nu_c)}\sum_{n=2,3,4}B_n \paren{\frac{\omega^2}{c_2^2}-k_n^2} *
     # \paren{\frac{\omega^2-\omega_0^2}{c_3^2}-k_n^2}e^{ik_nr}
-    term1_prefactor = -rho * J / (4 * np.pi * R * (mu_c + nu_c))
+    term1_prefactor = J / (4 * np.pi * R * (mu_c + nu_c))
+    # TODO: why not negative?
     term1_n2 = (
         (omega**2 / c2_sq - k2_sq)
         * ((omega**2 - w0_sq) / c3_sq - k2_sq)
@@ -560,11 +545,9 @@ def greens_rotation_force(
     # I_3\frac{\rho j(\lambda_c+\mu_c-\nu_c)}{4\pi(\lambda_c+2\mu_c)(\mu_c+\nu_c)} *
     # \sum_{n=2,3,4}B_n\paren{\frac{\omega^2}{c_2^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
     term2_prefactor = (
-        rho
-        * J
-        * (lam_c + mu_c - nu_c)
-        / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
+        -J * (lam_c + mu_c - nu_c) / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
     )
+    # TODO: why negative?
     term2_n2 = (
         (omega**2 / c2_sq - k2_sq) * (1j * k2 * R - 1) * np.exp(1j * k2 * R) / R**3
     )
@@ -583,8 +566,9 @@ def greens_rotation_force(
     # -I_3\frac{\rho j\nu^2}{\pi(\lambda_c+2\mu_c)(\mu+\nu)(\mu_c+\nu_c)} *
     # \sum_{n=2,3,4}B_n \paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
     term3_prefactor = (
-        -rho * J * nu**2 / (np.pi * (lam_c + 2 * mu_c) * (mu + nu) * (mu_c + nu_c))
+        J * nu**2 / (np.pi * (lam_c + 2 * mu_c) * (mu + nu) * (mu_c + nu_c))
     )
+    # TODO: why not negative?
     term3_n2 = (1j * k2 * R - 1) * np.exp(1j * k2 * R) / R**3
     term3_n3 = (1j * k3 * R - 1) * np.exp(1j * k3 * R) / R**3
     term3_n4 = (1j * k4 * R - 1) * np.exp(1j * k4 * R) / R**3
@@ -597,10 +581,7 @@ def greens_rotation_force(
     # - \hat{r}\hat{r}^T \frac{\rho j(\lambda_c+\mu_c-\nu_c)}{4\pi(\lambda_c+2\mu_c)(\mu_c+\nu_c)} *
     # \sum_{n=2,3,4} B_n  \paren{\frac{\omega^2}{c_2^2}-k_n^2}\paren{-k_n^2r^2-3ik_nr+3} \frac{e^{ik_nr}}{r^3}
     term4_prefactor = (
-        -rho
-        * J
-        * (lam_c + mu_c - nu_c)
-        / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
+        -J * (lam_c + mu_c - nu_c) / (4 * np.pi * (lam_c + 2 * mu_c) * (mu_c + nu_c))
     )
     term4_n2 = (
         (omega**2 / c2_sq - k2_sq)
@@ -629,7 +610,7 @@ def greens_rotation_force(
     # \hat{r}\hat{r}^T \frac{\rho j\nu^2}{\pi(\lambda_c+2\mu_c)(\mu+\nu)(\mu_c+\nu_c)} *
     # \sum_{n=2,3,4} B_n \paren{-k_n^2r^2-3ik_nr+3} \frac{e^{ik_nr}}{r^3}
     term5_prefactor = (
-        rho * J * nu**2 / (np.pi * (lam_c + 2 * mu_c) * (mu + nu) * (mu_c + nu_c))
+        J * nu**2 / (np.pi * (lam_c + 2 * mu_c) * (mu + nu) * (mu_c + nu_c))
     )
     term5_n2 = (-k2_sq * R**2 - 3j * k2 * R + 3) * np.exp(1j * k2 * R) / R**3
     term5_n3 = (-k3_sq * R**2 - 3j * k3 * R + 3) * np.exp(1j * k3 * R) / R**3
@@ -644,7 +625,7 @@ def greens_rotation_force(
     G[:3, :] = displacement_term
     G[3:, :] = term1 + term2 + term3 + term4 + term5
 
-    return G / rho  # eringen convention
+    return G / J  # TODO: why J and not rho?
 
 
 def greens_rotation_force_static(
