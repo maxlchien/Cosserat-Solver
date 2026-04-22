@@ -26,6 +26,7 @@ except ImportError:
         from cosserat_solver._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
+import cosserat_solver.classical_greens as classical_greens
 import cosserat_solver.greens3d as greens3d
 from cosserat_solver import consts
 from cosserat_solver.integrator import Integrator
@@ -118,7 +119,7 @@ def evaluate_greens_fortran(
         # Convert omega to complex
         omega_complex = complex(omega)
         # Get Green's function as nested tuple
-        G_tuple = integrator.greens_x_omega(x_nd, omega_complex)
+        G_tuple = integrator.greens_x_omega(x_nd.tolist(), omega_complex)
         # Convert to numpy array
         greens[i] = np.array(G_tuple, dtype=np.complex128)
 
@@ -338,6 +339,7 @@ def get_greens_callback(
         lam_c = material_params["lam_c"]
         mu_c = material_params["mu_c"]
         nu_c = material_params["nu_c"]
+        classical_elastic = bool(material_params.get("_classical_elastic", False))
 
         def python_callback_3d(omega: float) -> np.ndarray:
             """
@@ -362,9 +364,14 @@ def get_greens_callback(
                 raise ValueError(err)
 
             # Evaluate Green's function
-            G_omega = greens3d.greens_mixed_force(
-                x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-            )
+            if classical_elastic:
+                G_omega = classical_greens.greens_mixed_force(
+                    x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+                )
+            else:
+                G_omega = greens3d.greens_mixed_force(
+                    x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+                )
 
             # Get source spectrum
             source_mag = source.spectrum(omega)

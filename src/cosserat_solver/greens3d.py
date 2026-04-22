@@ -233,7 +233,8 @@ def greens_displacement_force(
 
     # -I_3 * \frac{\hat{f}_\omega}{r}\frac{\rho }{4\pi(\mu+\nu)}\frac{1}{k_4^2-k_2^2} *
     # \paren{e^{ik_2r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_2^2}-e^{ik_4r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_4^2}}
-    term1_prefactor = -rho / (4 * np.pi * R * (mu + nu))
+    term1_prefactor = rho / (4 * np.pi * R * (mu + nu))
+    # TODO: why negative?
     term1 = (
         term1_prefactor
         * (
@@ -248,7 +249,8 @@ def greens_displacement_force(
 
     # I_3 * \frac{\rho\paren{\lambda+\mu-\nu}}{4\pi(\lambda+2\mu)(\mu+\nu)} *
     # \sum_{n=1,2,4} A_n \paren{\frac{\omega^2-\omega_0^2}{c_4^2}-\frac{j\omega_0^2}{4c_2^2c_4^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
-    term2_prefactor = rho * (lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
+    term2_prefactor = -rho * (lam + mu - nu) / (4 * np.pi * (lam + 2 * mu) * (mu + nu))
+    # TODO: why negative?
     term2_n1 = (
         ((omega**2 - w0_sq) / c4_sq - J * w0_sq / (4 * c2_sq * c4_sq) - k1_sq)
         * (1j * k1 * R - 1)
@@ -301,7 +303,8 @@ def greens_displacement_force(
     )
 
     # [\hat{r}\times -] \frac{1}{r^2} \frac{\rho \nu}{2\pi(\mu+\nu)(\mu_c+\nu_c)}\frac{1}{k_4^2-k_2^2}\paren{(ik_2r-1)e^{ik_2r}-(ik_4r-1)e^{ik_4r}}
-    rotation_term_prefactor = rho * nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
+    rotation_term_prefactor = -rho * nu / (2 * np.pi * (mu + nu) * (mu_c + nu_c)) / R**2
+    # TODO: why negative?
     rotation_term = (
         rotation_term_prefactor
         * (k4_sq - k2_sq) ** (-1)
@@ -322,7 +325,11 @@ def greens_displacement_force(
     G[:3, :] = term1 + term2 + term3
     G[3:, :] = rotation_term
 
-    return G
+    return (
+        G / rho
+    )  # for some reason Eringen uses different conventions for displacement and rotation forces,
+    # so the force in SPECFEMPP is actually rho times what Eringen expects.
+    # here we undo it so the formula gets what Eringen wanted.
 
 
 def greens_displacement_force_static(
@@ -375,7 +382,7 @@ def greens_displacement_force_static(
     _R_hat = x / R
 
     # TODO: derive the correct static green's function
-    return np.zeros((6, 3), dtype=complex)
+    return np.zeros((6, 3), dtype=complex)  # divide by rho once we solve this
 
 
 def greens_rotation_force_from_dict(
@@ -467,6 +474,8 @@ def greens_rotation_force(
     if len(x) != 3:
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
         raise ValueError(err)
+
+    J = J / rho  # eringen's formulation has j given by our j*rho
 
     R = np.linalg.norm(x)
     if R == 0:
@@ -634,7 +643,8 @@ def greens_rotation_force(
     G = np.zeros((6, 3), dtype=np.complex128)
     G[:3, :] = displacement_term
     G[3:, :] = term1 + term2 + term3 + term4 + term5
-    return G
+
+    return G / rho  # eringen convention
 
 
 def greens_rotation_force_static(
@@ -687,4 +697,4 @@ def greens_rotation_force_static(
     _R_hat = x / R
 
     # TODO: derive the correct static green's function
-    return np.zeros((6, 3), dtype=complex)
+    return np.zeros((6, 3), dtype=complex)  # divide by rho once we solve this

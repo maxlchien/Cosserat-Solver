@@ -202,10 +202,10 @@ def all_k(
     k3 = np.emath.sqrt(k3_sq)
     k4 = np.emath.sqrt(k4_sq)
     sign = np.sign(omega)
-    k1 *= sign
-    k2 *= sign
-    k3 *= sign
-    k4 *= sign
+    k1 = sign * k1 if k1_sq >= 0 else k1
+    k2 = sign * k2 if k2_sq >= 0 else k2
+    k3 = sign * k3 if k3_sq >= 0 else k3
+    k4 = sign * k4 if k4_sq >= 0 else k4
     # TODO: address this properly
     return (
         k1,

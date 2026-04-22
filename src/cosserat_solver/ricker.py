@@ -32,7 +32,7 @@ class Ricker2D(SourceSpectrum):
         self.angle = ricker_params.get("angle", 0.0)  # in degrees
         self.factor = ricker_params.get("factor", 1.0)
 
-        self.start_time = ricker_params.get("t0", -1.2 / self.f0)
+        self.start_time = -1.2 / self.f0 + float(ricker_params.get("tshift", 0.0))
 
     def spectrum(self, omega: float) -> complex:
         """
@@ -111,7 +111,7 @@ class Ricker3D(SourceSpectrum):
             [float(x) for x in ricker_params.get("fc", [1.0, 1.0, 1.0])]
         )
 
-        self.start_time = ricker_params.get("t0", -1.2 / self.f0)
+        self.start_time = -1.2 / self.f0 + float(ricker_params.get("tshift", 0.0))
 
     def spectrum(self, omega: float) -> complex:
         """
