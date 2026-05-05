@@ -82,6 +82,7 @@ def main() -> None:
 
     if args.yaml:
         (
+            dim,
             material_params,
             source_params,
             ft_params,
@@ -89,6 +90,7 @@ def main() -> None:
             seismogram_locations,
         ) = cosserat_solver.read_yaml.read(args.yaml)
 
+    print(dim)
     print(material_params)
     print(source_params)
     print(ft_params)
@@ -96,11 +98,15 @@ def main() -> None:
     print(seismogram_locations)
 
     if source_params.get("type") == "Ricker":
-        source = cosserat_solver.ricker.Ricker(source_params)
+        if dim == 2:
+            source = cosserat_solver.ricker.Ricker2D(source_params)
+        elif dim == 3:
+            source = cosserat_solver.ricker.Ricker3D(source_params)
 
     for i, location in enumerate(seismogram_locations):
         cosserat_solver.trace_generator.generate_trace(
             location,
+            dim,
             material_params,
             source,
             ft_params,

@@ -5,7 +5,9 @@ import yaml
 import cosserat_solver.consts as consts
 
 
-def read(file_path: str):
+def read(
+    file_path: str,
+) -> tuple[int, dict, dict, dict, int, list[tuple[float, ...]]]:
     """
     Read a YAML file and return its contents as a dictionary.
 
@@ -14,6 +16,10 @@ def read(file_path: str):
         The path to the YAML file.
 
     Returns:
+
+    dim: int
+        The dimension of the problem (2 or 3).
+
     material_params: dict
         A dictionary containing the material parameters:
         - 'rho': Density
@@ -47,16 +53,46 @@ def read(file_path: str):
     with open(file_path) as file:
         data = yaml.safe_load(file)
 
-    material_params = data.get("material_params", {})
+    dim = data.get("dimension", -1)
+    if dim not in (2, 3):
+        err = f"Invalid dimension {dim}. Dimension must be specified as either 2 or 3."
+        raise ValueError(err)
+
+    material_params = convert_material_params_to_float(data.get("material_params", {}))
     source_params = data.get("source_params", {})
+    material_params["material_type"] = data.get("material_type", "cosserat")
     ft_params = data.get("ft_params", {})
     digits_precision = data.get("digits_precision", consts.COMPUTE_PRECISION)
     seismogram_locations = data.get("seismogram_locations", [])
 
+    # validate seismogram location lengths
+    for location in seismogram_locations:
+        if len(location) != dim:
+            err = f"Seismogram location {location} has length {len(location)}, but dimension is {dim}."
+            raise ValueError(err)
+
     return (
+        dim,
         material_params,
         source_params,
         ft_params,
         digits_precision,
         seismogram_locations,
     )
+
+
+def convert_material_params_to_float(
+    material_params: dict,
+) -> dict:
+    """
+    Convert all material parameters in the dictionary to float.
+
+    Parameters:
+    material_params: dict
+        A dictionary containing the material parameters.
+
+    Returns:
+    dict
+        A new dictionary with all material parameters converted to float.
+    """
+    return {key: float(value) for key, value in material_params.items()}

@@ -64,8 +64,14 @@ def backend_type(request):
     return request.param
 
 
+@pytest.fixture(params=[2])
+def dim(request):
+    """Fixture providing problem dimension (currently only 2D)."""
+    return request.param
+
+
 @pytest.fixture
-def evaluate_greens(backend_type, material_parameters):
+def evaluate_greens(backend_type, dim, material_parameters):
     """
     Fixture providing the appropriate Green's function evaluator.
 
@@ -87,7 +93,9 @@ def evaluate_greens(backend_type, material_parameters):
 
         def _evaluate(position, frequency):
             omega_array = np.array([frequency])
-            result = evaluate_greens_fortran(position, omega_array, material_params)
+            result = evaluate_greens_fortran(
+                position, dim, omega_array, material_params
+            )
             return result[0]
 
         return _evaluate
@@ -96,6 +104,7 @@ def evaluate_greens(backend_type, material_parameters):
     def _evaluate(position, frequency):
         return evaluate_greens_python(
             position,
+            dim,
             frequency,
             material_parameters,
             digits_precision=consts.TEST_PRECISION,
@@ -167,7 +176,9 @@ class TestGreensWrapperBackends:
 class TestGreensWrapperFortranVectorized:
     """Tests specific to Fortran's vectorized capability."""
 
-    def test_greens_fortran_multiple_frequencies(self, material_parameters, position):
+    def test_greens_fortran_multiple_frequencies(
+        self, material_parameters, dim, position
+    ):
         """Test Fortran vectorized evaluation at multiple frequencies."""
         material_params = {
             "rho": float(material_parameters["rho"]),
@@ -181,7 +192,7 @@ class TestGreensWrapperFortranVectorized:
         }
 
         omega_array = np.array(FREQUENCIES)
-        result = evaluate_greens_fortran(position, omega_array, material_params)
+        result = evaluate_greens_fortran(position, dim, omega_array, material_params)
 
         # Check shape
         assert result.shape == (len(FREQUENCIES), 3, 3)
@@ -197,7 +208,9 @@ class TestGreensWrapperFortranVectorized:
 class TestGreensWrapperCrossBackend:
     """Tests comparing Fortran and Python backends."""
 
-    def test_fortran_python_consistency(self, material_parameters, position, frequency):
+    def test_fortran_python_consistency(
+        self, material_parameters, dim, position, frequency
+    ):
         """
         Verify that Fortran and Python backends give consistent results.
 
@@ -318,10 +331,11 @@ class TestGreensWrapperCrossBackend:
 
         # Get results from both backends
         G_fortran = evaluate_greens_fortran(
-            position, np.array([frequency]), material_params
+            position, dim, np.array([frequency]), material_params
         )[0]
         G_python = evaluate_greens_python(
             position,
+            dim,
             frequency,
             material_parameters,
             digits_precision=consts.TEST_PRECISION,

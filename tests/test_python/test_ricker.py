@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from cosserat_solver.ricker import Ricker
+from cosserat_solver.ricker import Ricker2D
 
 
 def ricker_time_domain(t, f0):
@@ -13,14 +13,14 @@ def ricker_time_domain(t, f0):
 
 
 @pytest.mark.parametrize("f0", [10.0, 25.0, 50.0])
-def test_ricker_spectrum(f0):
+def test_ricker_spectrum_2d(f0):
     """
     Check that the ricker spectrum fhat satisfies
     fhat = int f(t)exp(+i omega t)dt
     """
     # pick our omega of interest
     omegas = np.linspace(0.1 * 2 * np.pi * f0, 3 * 2 * np.pi * f0, 50)
-    result = np.array([Ricker({"f0": f0}).spectrum(omega) for omega in omegas])
+    result = np.array([Ricker2D({"f0": f0}).spectrum(omega) for omega in omegas])
 
     def numerically_integrate(omega):
         # Time domain setup
