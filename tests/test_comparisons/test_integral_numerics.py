@@ -8,6 +8,8 @@ These tests are intentionally skipped for now while better replacements are
 written, so pytest still reports the missing coverage explicitly.
 """
 
+from __future__ import annotations
+
 import pytest
 
 pytestmark = pytest.mark.skip(
