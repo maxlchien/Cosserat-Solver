@@ -60,7 +60,7 @@ def read(
 
     material_params = convert_material_params_to_float(data.get("material_params", {}))
     source_params = data.get("source_params", {})
-    material_params["_classical_elastic"] = bool(data.get("classical_elastic", False))
+    material_params["material_type"] = data.get("material_type", "cosserat")
     ft_params = data.get("ft_params", {})
     digits_precision = data.get("digits_precision", consts.COMPUTE_PRECISION)
     seismogram_locations = data.get("seismogram_locations", [])

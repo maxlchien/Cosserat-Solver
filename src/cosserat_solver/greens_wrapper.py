@@ -26,8 +26,8 @@ except ImportError:
         from cosserat_solver._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
-import cosserat_solver.classical_greens as classical_greens
-import cosserat_solver.greens3d as greens3d
+import cosserat_solver.cosserat_3d as cosserat_3d
+import cosserat_solver.elastic_3d as elastic_3d
 from cosserat_solver import consts
 from cosserat_solver.integrator import Integrator
 from cosserat_solver.source import SourceSpectrum
@@ -339,7 +339,7 @@ def get_greens_callback(
         lam_c = material_params["lam_c"]
         mu_c = material_params["mu_c"]
         nu_c = material_params["nu_c"]
-        classical_elastic = bool(material_params.get("_classical_elastic", False))
+        material_type = material_params.get("material_type", "cosserat")
 
         def python_callback_3d(omega: float) -> np.ndarray:
             """
@@ -364,12 +364,12 @@ def get_greens_callback(
                 raise ValueError(err)
 
             # Evaluate Green's function
-            if classical_elastic:
-                G_omega = classical_greens.greens_mixed_force(
+            if material_type == "elastic":
+                G_omega = elastic_3d.greens_mixed_force(
                     x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
                 )
             else:
-                G_omega = greens3d.greens_mixed_force(
+                G_omega = cosserat_3d.greens_mixed_force(
                     x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
                 )
 
