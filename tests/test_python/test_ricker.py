@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from cosserat_solver.ricker import Ricker2D
+from cosserat_solver.ricker import Ricker2D, Ricker3D
 
 
 def ricker_time_domain(t, f0):
@@ -33,3 +33,44 @@ def test_ricker_spectrum_2d(f0):
     expected = np.array([numerically_integrate(omega) for omega in omegas])
 
     np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+
+def test_ricker_direction_shape_2d():
+    """
+    Check that the direction vector is length 3 (2 disp + 1 rot).
+    """
+    ricker = Ricker2D({"f0": 25.0})
+    direction = ricker.direction()
+    assert direction.shape == (3,)
+
+
+@pytest.mark.parametrize("f0", [10.0, 25.0, 50.0])
+def test_ricker_spectrum_3d(f0):
+    """
+    Check that the ricker spectrum fhat satisfies
+    fhat = int f(t)exp(+i omega t)dt
+    """
+    # pick our omega of interest
+    omegas = np.linspace(0.1 * 2 * np.pi * f0, 3 * 2 * np.pi * f0, 50)
+    result = np.array([Ricker3D({"f0": f0}).spectrum(omega) for omega in omegas])
+
+    def numerically_integrate(omega):
+        # Time domain setup
+        dt = 1 / (20 * f0)
+        t = np.arange(-2 / f0, 2 / f0, dt)
+        signal = ricker_time_domain(t, f0)
+        integrand = signal * np.exp(1j * omega * t)
+        return np.trapezoid(integrand, t)
+
+    expected = np.array([numerically_integrate(omega) for omega in omegas])
+
+    np.testing.assert_allclose(result, expected, rtol=1e-10)
+
+
+def test_ricker_direction_shape_3d():
+    """
+    Check that the direction vector is length 6 (3 disp + 3 rot).
+    """
+    ricker = Ricker3D({"f0": 25.0})
+    direction = ricker.direction()
+    assert direction.shape == (6,)
