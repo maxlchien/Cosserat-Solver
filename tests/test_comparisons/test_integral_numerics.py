@@ -1,13 +1,18 @@
-####
-# For now, these tests are being ignored.
-# Later we should have better tests written.
+"""
+Numerical verification of integral computations.
 
-# """
-# Numerical verification of integral computations.
+Compares residue theorem results (from both Python and Fortran implementations)
+against direct numerical integration using SciPy's quad with LowLevelCallable.
 
-# Compares residue theorem results (from both Python and Fortran implementations)
-# against direct numerical integration using SciPy's quad with LowLevelCallable.
-# """
+These tests are intentionally skipped for now while better replacements are
+written, so pytest still reports the missing coverage explicitly.
+"""
+
+import pytest
+
+pytestmark = pytest.mark.skip(
+    reason="Temporarily disabled until better integral numerics tests are written."
+)
 
 # from __future__ import annotations
 
