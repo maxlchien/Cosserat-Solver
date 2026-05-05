@@ -1,7 +1,10 @@
 # --- branch_config generation (unchanged) ---
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim2)
+# TODO: these should both be removed once dim2 is reworked
 add_custom_command(
   OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dim2/branch_config.f90
   COMMAND ${Python_EXECUTABLE}
+
     ${CMAKE_CURRENT_SOURCE_DIR}/dim2/generate_consts.py
     ${CMAKE_CURRENT_SOURCE_DIR}/../consts.py
     ${CMAKE_CURRENT_BINARY_DIR}/dim2/branch_config.f90

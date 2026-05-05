@@ -173,7 +173,7 @@ def evaluate_greens_python(
         )
 
         return integrator.greens_x_omega(x, omega)
-    err = f"Invalid dimension {dim}. Python backend currently only supports 2D and 3D problems."
+    err = f"Invalid dimension {dim}. This function is only for numerics comparisons, and needs to be rewritten for 3D."
     raise NotImplementedError(err)
 
 

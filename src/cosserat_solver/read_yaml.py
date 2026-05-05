@@ -7,7 +7,7 @@ import cosserat_solver.consts as consts
 
 def read(
     file_path: str,
-) -> tuple[int, dict, dict, dict, int, list[tuple[float, float]]]:
+) -> tuple[int, dict, dict, dict, int, list[tuple[float, ...]]]:
     """
     Read a YAML file and return its contents as a dictionary.
 
@@ -64,6 +64,12 @@ def read(
     ft_params = data.get("ft_params", {})
     digits_precision = data.get("digits_precision", consts.COMPUTE_PRECISION)
     seismogram_locations = data.get("seismogram_locations", [])
+
+    # validate seismogram location lengths
+    for location in seismogram_locations:
+        if len(location) != dim:
+            err = f"Seismogram location {location} has length {len(location)}, but dimension is {dim}."
+            raise ValueError(err)
 
     return (
         dim,

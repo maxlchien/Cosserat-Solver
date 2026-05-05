@@ -25,12 +25,12 @@ class Ricker2D(SourceSpectrum):
     """
 
     def __init__(self, ricker_params: dict):
-        self.f0 = ricker_params.get("f0", 25.0)  # in Hz
+        self.f0 = float(ricker_params.get("f0", 25.0))  # in Hz
         self.omega0 = 2 * np.pi * self.f0
-        self.displacement_ratio = ricker_params.get("f", 1.0)
-        self.rotation_ratio = ricker_params.get("fc", 1.0)
-        self.angle = ricker_params.get("angle", 0.0)  # in degrees
-        self.factor = ricker_params.get("factor", 1.0)
+        self.displacement_ratio = float(ricker_params.get("f", 1.0))
+        self.rotation_ratio = float(ricker_params.get("fc", 1.0))
+        self.angle = float(ricker_params.get("angle", 0.0))  # in degrees
+        self.factor = float(ricker_params.get("factor", 1.0))
 
         self.start_time = -1.2 / self.f0 + float(ricker_params.get("tshift", 0.0))
 

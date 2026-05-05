@@ -130,7 +130,7 @@ def k2_squared(
     """Calculate the squared wavenumber k2^2 for the 3D Cosserat medium."""
     r = dispersion_r(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     s = dispersion_s(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
-    return r + np.sqrt(r**2 - s)
+    return r + np.emath.sqrt(r**2 - s)  # TODO: address this properly
 
 
 def k3_squared(
@@ -158,7 +158,7 @@ def k4_squared(
     """Calculate the squared wavenumber k4^2 for the 3D Cosserat medium."""
     r = dispersion_r(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     s = dispersion_s(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
-    return r - np.sqrt(r**2 - s)
+    return r - np.emath.sqrt(r**2 - s)  # TODO: address this properly
 
 
 def all_k_squared(
