@@ -1,6 +1,6 @@
 """
 Test the fortran wrapper module _dispersion_core_wrapper.
-Due to roudning issues in the callback function, only the following aspects are tested:
+Due to rounding issues in the callback function, only the following aspects are tested:
 - That coefficients A, B, C, and c_pm, c_pm_prime are the same as their Python equivalents, up to double float tolerance
 - That dispersion(r) is zero, up to double float tolerance
 

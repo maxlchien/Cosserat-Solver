@@ -104,8 +104,10 @@ def greens_mixed_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return cosserat_core_3d.greens_mixed_force(
-        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    return np.array(
+        cosserat_core_3d.greens_mixed_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
     )
 
 
@@ -202,8 +204,10 @@ def greens_displacement_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return cosserat_core_3d.greens_displacement_force(
-        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    return np.array(
+        cosserat_core_3d.greens_displacement_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
     )
 
 
@@ -254,8 +258,10 @@ def greens_displacement_force_static(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return cosserat_core_3d.greens_displacement_force_static(
-        x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+    return np.array(
+        cosserat_core_3d.greens_displacement_force_static(
+            x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+        )
     )
 
 
@@ -353,8 +359,10 @@ def greens_rotation_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return cosserat_core_3d.greens_rotation_force(
-        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    return np.array(
+        cosserat_core_3d.greens_rotation_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
     )
 
 
@@ -405,6 +413,8 @@ def greens_rotation_force_static(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return cosserat_core_3d.greens_rotation_force_static(
-        x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+    return np.array(
+        cosserat_core_3d.greens_rotation_force_static(
+            x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+        )
     )

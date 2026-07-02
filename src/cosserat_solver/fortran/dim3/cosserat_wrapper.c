@@ -23,7 +23,7 @@ static PyObject* py_greens_mixed_force(PyObject* self, PyObject* args) {
     PyObject* x_obj;
     double omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
     double x[3];
-    double G_real[6][6], G_imag[6][6];
+    double G_real[6*6], G_imag[6*6];
 
     if (!PyArg_ParseTuple(args, "Oddddddddd", &x_obj, &omega, &rho, &lam, &mu,
                           &nu, &J, &lam_c, &mu_c, &nu_c)) {
@@ -53,7 +53,7 @@ static PyObject* py_greens_mixed_force(PyObject* self, PyObject* args) {
     for (int i = 0; i < 6; ++i) {
         PyObject* row = PyTuple_New(6);
         for (int j = 0; j < 6; ++j) {
-            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i][j], G_imag[i][j]));
+            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i + 6 * j], G_imag[i + 6 * j]));
         }
         PyTuple_SET_ITEM(rows, i, row);
     }
@@ -65,7 +65,7 @@ static PyObject* py_greens_displacement_force(PyObject* self, PyObject* args) {
     PyObject* x_obj;
     double omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
     double x[3];
-    double G_real[6][3], G_imag[6][3];
+    double G_real[6*3], G_imag[6*3];
 
     if (!PyArg_ParseTuple(args, "Oddddddddd", &x_obj, &omega, &rho, &lam, &mu,
                           &nu, &J, &lam_c, &mu_c, &nu_c)) {
@@ -96,7 +96,7 @@ static PyObject* py_greens_displacement_force(PyObject* self, PyObject* args) {
     for (int i = 0; i < 6; ++i) {
         PyObject* row = PyTuple_New(3);
         for (int j = 0; j < 3; ++j) {
-            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i][j], G_imag[i][j]));
+            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i + 6 * j], G_imag[i + 6 * j]));
         }
         PyTuple_SET_ITEM(rows, i, row);
     }
@@ -108,7 +108,7 @@ static PyObject* py_greens_rotation_force(PyObject* self, PyObject* args) {
     PyObject* x_obj;
     double omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
     double x[3];
-    double G_real[6][3], G_imag[6][3];
+    double G_real[6*3], G_imag[6*3];
 
     if (!PyArg_ParseTuple(args, "Oddddddddd", &x_obj, &omega, &rho, &lam, &mu,
                           &nu, &J, &lam_c, &mu_c, &nu_c)) {
@@ -138,7 +138,7 @@ static PyObject* py_greens_rotation_force(PyObject* self, PyObject* args) {
     for (int i = 0; i < 6; ++i) {
         PyObject* row = PyTuple_New(3);
         for (int j = 0; j < 3; ++j) {
-            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i][j], G_imag[i][j]));
+            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i + 6 * j], G_imag[i + 6 * j]));
         }
         PyTuple_SET_ITEM(rows, i, row);
     }
@@ -150,9 +150,9 @@ static PyObject* py_greens_displacement_force_static(PyObject* self, PyObject* a
     PyObject* x_obj;
     double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
     double x[3];
-    double G_real[6][3], G_imag[6][3];
+    double G_real[6*3], G_imag[6*3];
 
-    if (!PyArg_ParseTuple(args, "Oddddddddd", &x_obj, &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+    if (!PyArg_ParseTuple(args, "Odddddddd", &x_obj, &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
         return NULL;
     }
 
@@ -179,7 +179,7 @@ static PyObject* py_greens_displacement_force_static(PyObject* self, PyObject* a
     for (int i = 0; i < 6; ++i) {
         PyObject* row = PyTuple_New(3);
         for (int j = 0; j < 3; ++j) {
-            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i][j], G_imag[i][j]));
+            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i + 6 * j], G_imag[i + 6 * j]));
         }
         PyTuple_SET_ITEM(rows, i, row);
     }
@@ -191,9 +191,9 @@ static PyObject* py_greens_rotation_force_static(PyObject* self, PyObject* args)
     PyObject* x_obj;
     double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
     double x[3];
-    double G_real[6][3], G_imag[6][3];
+    double G_real[6*3], G_imag[6*3];
 
-    if (!PyArg_ParseTuple(args, "Oddddddddd", &x_obj, &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
+    if (!PyArg_ParseTuple(args, "Odddddddd", &x_obj, &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c)) {
         return NULL;
     }
 
@@ -220,7 +220,7 @@ static PyObject* py_greens_rotation_force_static(PyObject* self, PyObject* args)
     for (int i = 0; i < 6; ++i) {
         PyObject* row = PyTuple_New(3);
         for (int j = 0; j < 3; ++j) {
-            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i][j], G_imag[i][j]));
+            PyTuple_SET_ITEM(row, j, PyComplex_FromDoubles(G_real[i + 6 * j], G_imag[i + 6 * j]));
         }
         PyTuple_SET_ITEM(rows, i, row);
     }

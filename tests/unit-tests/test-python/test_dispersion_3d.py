@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver import dispersion3d
+from cosserat_solver import dispersion_3d
 
 
 def test_k_branches(material_parameters: dict, omega_value: float) -> None:
     """
     Check that the k values all are returned either with positive imaginary part, or sign equal to that of omega when real valued.
     """
-    k_values = dispersion3d.all_k(
+    k_values = dispersion_3d.all_k(
         omega_value,
         material_parameters["rho"],
         material_parameters["lam"],
@@ -38,7 +38,7 @@ def test_k24_roots(material_parameters: dict, omega_value: float) -> None:
     material_parameters = {k: np.longdouble(v) for k, v in material_parameters.items()}
     omega_value = np.longdouble(omega_value)
 
-    _, k2_sq, _, k4_sq = dispersion3d.all_k_squared(
+    _, k2_sq, _, k4_sq = dispersion_3d.all_k_squared(
         omega_value,
         material_parameters["rho"],
         material_parameters["lam"],
@@ -49,7 +49,7 @@ def test_k24_roots(material_parameters: dict, omega_value: float) -> None:
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    r = dispersion3d.dispersion_r(
+    r = dispersion_3d.dispersion_r(
         omega_value,
         material_parameters["rho"],
         material_parameters["lam"],
@@ -60,7 +60,7 @@ def test_k24_roots(material_parameters: dict, omega_value: float) -> None:
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    s = dispersion3d.dispersion_s(
+    s = dispersion_3d.dispersion_s(
         omega_value,
         material_parameters["rho"],
         material_parameters["lam"],

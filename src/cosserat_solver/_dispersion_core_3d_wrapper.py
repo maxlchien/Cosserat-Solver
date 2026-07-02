@@ -61,9 +61,9 @@ def all_c_squared_from_dict(material_params: dict) -> tuple[float, float, float,
     )
 
 
-def w0_squared(rho: float, lam: float, mu: float) -> float:
+def w0_squared(nu: float, J: float) -> float:
     """Calculate the squared velocity w0^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.w0_squared(rho, lam, mu)
+    return dispersion_core_3d.w0_squared(nu, J)
 
 
 def dispersion_r(

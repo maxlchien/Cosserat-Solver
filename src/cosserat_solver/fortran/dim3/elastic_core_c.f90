@@ -13,7 +13,7 @@ contains
   subroutine greens_displacement_force_wrapper(x, omega, rho, lam, mu, result_real, result_imag) &
     bind(C, name="greens_displacement_force_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: omega, rho, lam, mu
+    real(c_double), intent(in), value :: omega, rho, lam, mu
     real(c_double), intent(out) :: result_real(3, 3)
     real(c_double), intent(out) :: result_imag(3, 3)
     complex(rk) :: result_quad(3, 3)

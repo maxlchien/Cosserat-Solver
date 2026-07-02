@@ -30,6 +30,17 @@ contains
     C = reshape([((a(i)*b(j), i=1,n), j=1,m)], [n,m])
   end function outer_product
 
+  function rtimes(r) result(M) ! matrix so that rtimes * v = r cross v
+    real(rk), intent(in) :: r(3)
+    real(rk) :: M(3,3)
+
+    ! reshape() fills column-major, so list elements column-by-column
+    M = reshape( &
+        [0.0_rk,   r(3),  -r(2), &   ! column 1: (0, r3, -r2)
+         -r(3),    0.0_rk, r(1), &   ! column 2: (-r3, 0, r1)
+          r(2),   -r(1),  0.0_rk], [3,3])
+  end function rtimes
+
   function greens_mixed_force(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(G)
     real(rk), intent(in) :: x(3)
     real(rk), intent(in) :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
@@ -87,8 +98,8 @@ contains
 
     ! -I_3 * \frac{\hat{f}_\omega}{r}\frac{\rho }{4\pi(\mu+\nu)}\frac{1}{k_4^2-k_2^2} *
     ! \paren{e^{ik_2r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_2^2}-e^{ik_4r}\paren{\frac{\omega^2-\omega_0^2}{c_4^2}-k_4^2}}
-    term1_prefactor = 1.0_rk / (4.0_rk * pi * (mu + nu))
-    term1 = -term1_prefactor / (k4_sq - k2_sq) * &
+    term1_prefactor = 1.0_rk / (4.0_rk * pi * R * (mu + nu))
+    term1 = term1_prefactor / (k4_sq - k2_sq) * &
         (exp((0.0_rk, 1.0_rk) * k2_val * R) * ((omega**2 - w0_sq) / c4_sq - k2_sq) - &
          exp((0.0_rk, 1.0_rk) * k4_val * R) * ((omega**2 - w0_sq) / c4_sq - k4_sq)) * &
         identity(3)
@@ -118,12 +129,9 @@ contains
     ! [\hat{r}\times -] \frac{1}{r^2} \frac{\rho \nu}{2\pi(\mu+\nu)(\mu_c+\nu_c)}\frac{1}{k_4^2-k_2^2}\paren{(ik_2r-1)e^{ik_2r}-(ik_4r-1)e^{ik_4r}}
     rotation_term_prefactor = -nu / (2.0_rk * pi * (mu + nu) * (mu_c + nu_c)) / R**2
     rotation_term = rotation_term_prefactor / (k4_sq - k2_sq) * &
-        ((0.0_rk, 1.0_rk) * k2_val * R - 1.0_rk) * exp((0.0_rk, 1.0_rk) * k2_val * R) &
-        - ((0.0_rk, 1.0_rk) * k4_val * R - 1.0_rk) * exp((0.0_rk, 1.0_rk) * k4_val * R)
-    rotation_term = rotation_term * reshape( &
-      [R_hat(2), -R_hat(3), R_hat(1), &
-      -R_hat(2), R_hat(3), -R_hat(1), &
-      R_hat(3), -R_hat(1), R_hat(2)], [3,3])
+        (((0.0_rk, 1.0_rk) * k2_val * R - 1.0_rk) * exp((0.0_rk, 1.0_rk) * k2_val * R) &
+        - ((0.0_rk, 1.0_rk) * k4_val * R - 1.0_rk) * exp((0.0_rk, 1.0_rk) * k4_val * R))
+    rotation_term = rotation_term * rtimes(R_hat)
 
     G(1:3, 1:3) = term1 + term2 + term3
     G(4:6, 1:3) = rotation_term
@@ -203,18 +211,15 @@ contains
     displacement_term_n4 = ((omega**2 - w0_sq) / c3_sq - k4_sq) * ((0.0_rk, 1.0_rk) * k4_val * R - 1.0_rk) &
       * exp((0.0_rk, 1.0_rk) * k4_val * R)
     displacement_term = displacement_term_prefactor * &
-      (B2 * displacement_term_n2 + B3 * displacement_term_n3 + B4 * displacement_term_n4) * reshape( &
-      [0.0_rk, -R_hat(3), R_hat(2), &
-       R_hat(3), 0.0_rk, -R_hat(1), &
-       -R_hat(2), R_hat(1), 0.0_rk], [3,3])
+      (B2 * displacement_term_n2 + B3 * displacement_term_n3 + B4 * displacement_term_n4) * rtimes(R_hat)
 
     ! -I_3\frac{1}{r} \frac{\rho j}{4\pi(\mu_c+\nu_c)}\sum_{n=2,3,4}B_n \paren{\frac{\omega^2}{c_2^2}-k_n^2} *
     ! \paren{\frac{\omega^2-\omega_0^2}{c_3^2}-k_n^2}e^{ik_nr}
-    term1_prefactor = J / (4.0_rk * pi * (mu_c + nu_c)) / R
+    term1_prefactor = J / (4.0_rk * pi * R * (mu_c + nu_c))
     term1_n2 = ((omega**2 / c2_sq - k2_sq) * ((omega**2 - w0_sq) / c3_sq - k2_sq) * exp((0.0_rk, 1.0_rk) * k2_val * R))
     term1_n3 = ((omega**2 / c2_sq - k3_sq) * ((omega**2 - w0_sq) / c3_sq - k3_sq) * exp((0.0_rk, 1.0_rk) * k3_val * R))
     term1_n4 = ((omega**2 / c2_sq - k4_sq) * ((omega**2 - w0_sq) / c3_sq - k4_sq) * exp((0.0_rk, 1.0_rk) * k4_val * R))
-    term1 = term1_prefactor * (term1_n2 + term1_n3 + term1_n4) * identity(3)
+    term1 = term1_prefactor * (B2 * term1_n2 + B3 * term1_n3 + B4 * term1_n4) * identity(3)
 
     ! I_3\frac{\rho j(\lambda_c+\mu_c-\nu_c)}{4\pi(\lambda_c+2\mu_c)(\mu_c+\nu_c)} *
     ! \sum_{n=2,3,4}B_n\paren{\frac{\omega^2}{c_2^2}-k_n^2}\paren{ik_nr-1}\frac{e^{ik_nr}}{r^3}
@@ -254,6 +259,7 @@ contains
     G = 0.0_rk
     G(1:3, 1:3) = displacement_term
     G(4:6, 1:3) = term1 + term2 + term3 + term4 + term5
+    G = G / J
   end function greens_rotation_force
 
   function greens_rotation_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) result(G)

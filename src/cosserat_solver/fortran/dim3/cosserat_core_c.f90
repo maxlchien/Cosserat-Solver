@@ -13,7 +13,7 @@ contains
   subroutine greens_mixed_force_wrapper(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, result_real, result_imag) &
     bind(C, name="greens_mixed_force_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(in), value :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     real(c_double), intent(out) :: result_real(6, 6)
     real(c_double), intent(out) :: result_imag(6, 6)
     complex(rk) :: result_quad(6, 6)
@@ -42,7 +42,7 @@ contains
   subroutine greens_displacement_force_wrapper(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, result_real, result_imag) &
     bind(C, name="greens_displacement_force_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(in), value :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     real(c_double), intent(out) :: result_real(6, 3)
     real(c_double), intent(out) :: result_imag(6, 3)
     complex(rk) :: result_quad(6, 3)
@@ -71,7 +71,7 @@ contains
   subroutine greens_rotation_force_wrapper(x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, result_real, result_imag) &
     bind(C, name="greens_rotation_force_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(in), value :: omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     real(c_double), intent(out) :: result_real(6, 3)
     real(c_double), intent(out) :: result_imag(6, 3)
     complex(rk) :: result_quad(6, 3)
@@ -100,7 +100,7 @@ contains
   subroutine greens_displacement_force_static_wrapper(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, result_real, result_imag) &
     bind(C, name="greens_displacement_force_static_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(in), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     real(c_double), intent(out) :: result_real(6, 3)
     real(c_double), intent(out) :: result_imag(6, 3)
     complex(rk) :: result_quad(6, 3)
@@ -128,7 +128,7 @@ contains
   subroutine greens_rotation_force_static_wrapper(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, result_real, result_imag) &
     bind(C, name="greens_rotation_force_static_wrapper")
     real(c_double), intent(in) :: x(3)
-    real(c_double), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    real(c_double), intent(in), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     real(c_double), intent(out) :: result_real(6, 3)
     real(c_double), intent(out) :: result_imag(6, 3)
     complex(rk) :: result_quad(6, 3)

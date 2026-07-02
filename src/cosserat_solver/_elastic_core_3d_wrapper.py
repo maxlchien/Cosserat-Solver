@@ -105,7 +105,7 @@ def greens_mixed_force(
         raise ValueError(err)
 
     G = np.zeros((6, 6), dtype=np.complex128)
-    G[:3, :3] = elastic_core_3d.greens_displacement_force(
+    G[:, :3] = greens_displacement_force(
         x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     return G
