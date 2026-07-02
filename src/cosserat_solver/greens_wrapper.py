@@ -17,13 +17,16 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 try:
-    from cosserat_solver._integrator_core_wrapper import HAS_FORTRAN, IntegratorFortran
+    from cosserat_solver._integrator_core_2d_wrapper import (
+        HAS_FORTRAN,
+        IntegratorFortran,
+    )
 
     FORTRAN_AVAILABLE = HAS_FORTRAN
 except ImportError:
     FORTRAN_AVAILABLE = False
     if TYPE_CHECKING:
-        from cosserat_solver._integrator_core_wrapper import IntegratorFortran
+        from cosserat_solver._integrator_core_2d_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
 import cosserat_solver.cosserat_3d as cosserat_3d
