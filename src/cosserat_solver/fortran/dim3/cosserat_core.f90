@@ -61,7 +61,7 @@ contains
 
     ! validation of parameters occurs at Python wrapper boundary
 
-    if (omega == 0.0_rk) then
+    if (abs(omega) < 1.0e-12_rk) then
       ! return early
       G = greens_displacement_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
       return
@@ -169,7 +169,7 @@ contains
 
     ! validation of parameters occurs at Python wrapper boundary
 
-    if (omega == 0.0_rk) then
+    if (abs(omega) < 1.0e-12_rk) then
       ! return early
       G = greens_rotation_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
       return

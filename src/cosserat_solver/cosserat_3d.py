@@ -198,7 +198,7 @@ def greens_displacement_force(
         raise ValueError(err)
     R_hat = x / R
 
-    if omega == 0:
+    if abs(omega) < 1e-12:
         return greens_displacement_force_static(
             x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
         )
@@ -466,7 +466,7 @@ def greens_rotation_force(
         raise ValueError(err)
     R_hat = x / R
 
-    if omega == 0:
+    if abs(omega) < 1e-12:
         return greens_rotation_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
     # Compute squared velocities and cutoff frequency
