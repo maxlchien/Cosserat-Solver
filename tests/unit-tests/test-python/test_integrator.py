@@ -15,9 +15,9 @@ IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 mp.dps = consts.TEST_PRECISION
 
 
-def test_denom_prime(material_parameters, k_value, omega_value, branch):
+def test_denom_prime(material_parameters_mp, k_value, omega_value_mp, branch):
     """Test that the derivative of the denominator function is computed correctly."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -28,7 +28,7 @@ def test_denom_prime(material_parameters, k_value, omega_value, branch):
     nu_c = params["nu_c"]
 
     k = k_value
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -55,8 +55,8 @@ def test_denom_prime(material_parameters, k_value, omega_value, branch):
     )
 
 
-def test_alternate_pole_repr(material_parameters, omega_value):
-    params = material_parameters
+def test_alternate_pole_repr(material_parameters_mp, omega_value_mp):
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -66,7 +66,7 @@ def test_alternate_pole_repr(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -93,9 +93,9 @@ def test_alternate_pole_repr(material_parameters, omega_value):
         )
 
 
-def test_denom_zeros(material_parameters, omega_value):
+def test_denom_zeros(material_parameters_mp, omega_value_mp):
     """Test that the denominator function evaluates to zero at the computed poles."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -105,7 +105,7 @@ def test_denom_zeros(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -134,9 +134,9 @@ def test_denom_zeros(material_parameters, omega_value):
         )
 
 
-def test_combined_equation_1(material_parameters, omega_value):
+def test_combined_equation_1(material_parameters_mp, omega_value_mp):
     """Test that the first expression eliminating c_pm is satisfied at the poles."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -146,7 +146,7 @@ def test_combined_equation_1(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -176,9 +176,9 @@ def test_combined_equation_1(material_parameters, omega_value):
         )
 
 
-def test_combined_equation_2(material_parameters, omega_value):
+def test_combined_equation_2(material_parameters_mp, omega_value_mp):
     """Test that the second expression eliminating c_pm is satisfied at the poles."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -188,7 +188,7 @@ def test_combined_equation_2(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -221,9 +221,9 @@ def test_combined_equation_2(material_parameters, omega_value):
         )
 
 
-def test_dispersion_r2(material_parameters, omega_value):
+def test_dispersion_r2(material_parameters_mp, omega_value_mp):
     """Test that the dispersion relation is satisfied at the poles."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -233,7 +233,7 @@ def test_dispersion_r2(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,
@@ -287,10 +287,10 @@ def r2_value(request):
     return request.param
 
 
-def test_pole_selection(r2_value, omega_value):
+def test_pole_selection(r2_value, omega_value_mp):
     """Test that the pole selection always produces poles in the upper half plane, or on the side of the real axis corresponding to
     the sign of omega"""
-    omega = omega_value
+    omega = omega_value_mp
 
     r = Integrator._pick_pole(r2_value, omega)
     # check that the pole is in the upper half plane, or on the correct side of the real axis
@@ -302,9 +302,9 @@ def test_pole_selection(r2_value, omega_value):
     )
 
 
-def test_pole_locations(material_parameters, omega_value):
+def test_pole_locations(material_parameters_mp, omega_value_mp):
     """Test that the computed poles have non-negative imaginary parts, or lie on the correct side of the real axis."""
-    params = material_parameters
+    params = material_parameters_mp
     rho = params["rho"]
     lam = params["lam"]
     mu = params["mu"]
@@ -314,7 +314,7 @@ def test_pole_locations(material_parameters, omega_value):
     mu_c = params["mu_c"]
     nu_c = params["nu_c"]
 
-    omega = omega_value
+    omega = omega_value_mp
 
     integrator = Integrator(
         rho=rho,

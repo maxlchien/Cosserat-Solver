@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import itertools
-import os
-import time
 
+import numpy as np
 import pytest
 from mpmath import mp
 
@@ -11,43 +10,9 @@ from cosserat_solver import consts
 
 mp.dps = consts.TEST_PRECISION
 
-# Store timing data in a shared location
-_timing_file = ".pytest_timings.txt"
-
-
-@pytest.hookimpl(tryfirst=True)
-def pytest_sessionstart(session):
-    """Initialize timing at session start"""
-    session.start_cpu_time = time.process_time()
-
-
-@pytest.hookimpl(trylast=True)
-def pytest_sessionfinish(session, exitstatus):  # noqa: ARG001
-    """Record CPU time at session end"""
-    cpu_time = time.process_time() - session.start_cpu_time
-    worker_id = os.environ.get("PYTEST_XDIST_WORKER", "master")
-
-    # Append timing data
-    with open(_timing_file, "a") as f:
-        f.write(f"{worker_id},{cpu_time}\n")
-
-    # If master process, read and sum all timings
-    if worker_id == "master":
-        time.sleep(0.5)  # Give workers time to write
-        total = 0
-        try:
-            with open(_timing_file) as f:
-                for line in f:
-                    parts = line.strip().split(",")
-                    if len(parts) == 2:
-                        total += float(parts[1])
-            print(f"\n\nTotal CPU time across all workers: {total:.2f}s")
-        finally:
-            os.remove(_timing_file)
-
 
 # --- Predefined material parameter sets ---
-MATERIAL_PARAMETER_SETS = [
+MATERIAL_PARAMETER_SETS_MP = [
     {
         "rho": mp.mpf("1e3"),
         "lam": mp.mpf("1e5"),
@@ -73,10 +38,10 @@ MATERIAL_PARAMETER_SETS = [
         "lam": mp.mpf("1e7"),
         "mu": mp.mpf("1e7"),
         "nu": mp.mpf("1e6"),
-        "J": mp.mpf("1e6"),
+        "J": mp.mpf("5e4"),
         "lam_c": mp.mpf("1e7"),
         "mu_c": mp.mpf("1e7"),
-        "nu_c": mp.mpf("1e6"),
+        "nu_c": mp.mpf("1e7"),
     },
     {
         "rho": mp.mpf("1e6"),
@@ -99,6 +64,10 @@ MATERIAL_PARAMETER_SETS = [
         "nu_c": mp.mpf("8e6"),
     },
 ]
+MATERIAL_PARAMETER_SETS = [
+    {k: np.float64(v) for k, v in mp_set.items()}
+    for mp_set in MATERIAL_PARAMETER_SETS_MP
+]
 
 # --- Define k and omega ranges ---
 K_VALUES = [
@@ -115,7 +84,8 @@ def k_value(request):
     return request.param
 
 
-OMEGA_VALUES = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+OMEGA_VALUES_MP = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+OMEGA_VALUES = [np.float64(omega) for omega in OMEGA_VALUES_MP]
 
 
 @pytest.fixture(params=OMEGA_VALUES, scope="session")
@@ -123,10 +93,21 @@ def omega_value(request):
     return request.param
 
 
+@pytest.fixture(params=OMEGA_VALUES_MP, scope="session")
+def omega_value_mp(request):
+    return request.param
+
+
 # --- Fixture for material parameters ---
 @pytest.fixture(params=MATERIAL_PARAMETER_SETS, scope="session")
 def material_parameters(request):
     """Fixture providing predefined sets of material parameters."""
+    return request.param
+
+
+@pytest.fixture(params=MATERIAL_PARAMETER_SETS_MP, scope="session")
+def material_parameters_mp(request):
+    """Fixture providing predefined sets of material parameters with mpmath precision."""
     return request.param
 
 
@@ -163,4 +144,40 @@ NORM_X_VALUES = [
 @pytest.fixture(params=NORM_X_VALUES, scope="session")
 def norm_x_value(request):
     """Fixture providing values for x-coordinate norm in integration tests."""
+    return request.param
+
+
+# --- Fixture for 2d and 3d locations ---
+LOCATIONS_2D = [
+    np.array([100.0, 200.0]),
+    np.array([500.0, 500.0]),
+    np.array([1000.0, 1500.0]),
+    np.array([0.0, 100.0]),
+    np.array([200.0, 0.0]),
+    # generally it is not possible to evaluate at the origin
+]
+
+LOCATIONS_3D = [
+    np.array([100.0, 200.0, 300.0]),
+    np.array([500.0, 500.0, 500.0]),
+    np.array([1000.0, 1500.0, 2000.0]),
+    np.array([0.0, 100.0, 200.0]),
+    np.array([200.0, 0.0, 300.0]),
+    np.array([300.0, 200.0, 0.0]),
+    np.array([0.0, 0.0, 100.0]),
+    np.array([0.0, 100.0, 0.0]),
+    np.array([100.0, 0.0, 0.0]),
+    # generally it is not possible to evaluate at the origin
+]
+
+
+@pytest.fixture(params=LOCATIONS_2D, scope="session")
+def location_2d(request):
+    """Fixture providing 2D locations for testing."""
+    return request.param
+
+
+@pytest.fixture(params=LOCATIONS_3D, scope="session")
+def location_3d(request):
+    """Fixture providing 3D locations for testing."""
     return request.param
