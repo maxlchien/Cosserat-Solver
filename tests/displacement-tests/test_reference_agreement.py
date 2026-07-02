@@ -17,26 +17,27 @@ TOL = 1e-3  # Default tolerance for normalized error
 @pytest.mark.timeout(300)  # Set a timeout of 5 minutes for each test
 def test_simulation_agreement(simulation: str) -> None:
     subprocess.run(
-        ["snakemake clean -c1"],
+        ["snakemake", "clean", "-c1"],
         check=False,
         cwd=TEST_DIR / f"data/{simulation}",
         capture_output=True,
         text=True,
-        shell=True,
     )
     result = subprocess.run(
-        ["snakemake -c1"],
+        ["snakemake", "-c1"],
         check=False,
         cwd=TEST_DIR / f"data/{simulation}",
         capture_output=True,
         text=True,
-        shell=True,
     )
     assert result.returncode == 0, (
         f"Simulation {simulation} failed with error: {result.stderr}"
     )
 
     statistics, pass_fail = analyze_agreement(simulation, TOL)
+    num_failed = statistics.get(
+        "num_failed", ValueError("num_failed not found in statistics")
+    )
 
     if not pass_fail:
         error_messages = []
@@ -51,7 +52,7 @@ def test_simulation_agreement(simulation: str) -> None:
                 )
         pytest.fail(
             f"Simulation {simulation} failed agreement test:\n"
-            + "\n".join(error_messages)
+            f"\n Number of failed traces: {num_failed}\n" + "\n".join(error_messages)
         )
 
 
@@ -83,6 +84,7 @@ def analyze_agreement(
 
     statistics = {}
     fail = False
+    num_failed = 0
     for ref, computed in trace_filenames:
         # load the traces
         ref_path = TEST_DIR / f"data/{simulation_name}/reference_traces/{ref}"
@@ -133,6 +135,8 @@ def analyze_agreement(
         }
         if normalized_error > tolerance:
             fail = True
+            num_failed += 1
 
     # return a dict and boolean for pass/fail
+    statistics["num_failed"] = num_failed
     return statistics, not fail

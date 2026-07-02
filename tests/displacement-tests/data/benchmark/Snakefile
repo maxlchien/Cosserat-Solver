@@ -1,6 +1,4 @@
-SPECFEM_BIN = "/home/mc7656/SPECFEMPP/bin/release-cuda/specfem 3d"
-MESHFEM_BIN = "/home/mc7656/SPECFEMPP/bin/release-cuda/xmeshfem3D"
-FOURIER_BIN = "/home/mc7656/experiments/Cosserat-Solver-3D/Cosserat-Solver"
+
 
 rule all:
     input:
@@ -23,7 +21,6 @@ rule run_solver:
     localrule: True
     shell:
         """
-            uv pip install {FOURIER_BIN}
             uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES --use-python-backend
         """
 
