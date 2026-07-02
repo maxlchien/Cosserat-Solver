@@ -1,0 +1,49 @@
+SPECFEM_BIN = "/home/mc7656/SPECFEMPP/bin/release-cuda/specfem 3d"
+MESHFEM_BIN = "/home/mc7656/SPECFEMPP/bin/release-cuda/xmeshfem3D"
+FOURIER_BIN = "/home/mc7656/experiments/Cosserat-Solver-3D/Cosserat-Solver"
+
+rule all:
+    input:
+        # summary_plot=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement", "rotation"]),
+        traces=expand(
+            "OUTPUT_FILES/{network_name}.{station_name}.S2.{component}.{extension}",
+            station_name=["S0001", "S0002", "S0003", "S0004", "S0005"],# ,"S0005", "S0006", "S0007", "S0008", "S0009"],
+            network_name=["AA"],
+            component=["BXX", "BXY", "BXZ"],
+            extension=["semr", "semd"],
+        ),
+    localrule: True
+
+
+rule run_solver:
+    input:
+        params="params.yaml",
+    output:
+        traces=rules.all.input.traces,
+    localrule: True
+    shell:
+        """
+            uv pip install {FOURIER_BIN}
+            uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES --use-python-backend
+        """
+
+
+# rule plot_seismogram:
+#     input:
+#         rules.run_solver.output.traces,
+#         "plot_seismograms.py",
+#     output:
+#         summary_plot=rules.all.input.summary_plot,
+#     localrule: True
+#     shell:
+#         """
+#             python plot_seismograms.py --include specfem fourier --channel rotation --title "Mixed Force Coupled Simulation, SPECFEMPP vs Fourier Solver"
+#             python plot_seismograms.py --include specfem fourier --channel displacement --title "Mixed Force Coupled Simulation, SPECFEMPP vs Fourier Solver"
+#         """
+
+rule clean:
+    localrule: True
+    shell:
+        """
+            rm -rf OUTPUT_FILES
+        """
