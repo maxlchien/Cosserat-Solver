@@ -22,7 +22,7 @@ jobs:
         with:
           python-version: "3.x"
       - uses: pre-commit/action@v3.0.1
-  Unit Tests:
+  Unit-Tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -45,7 +45,7 @@ jobs:
         run: |
           uv sync --group nox
           uv run nox -s tests -- -n auto
-  Displacement Tests:
+  Displacement-Tests:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
