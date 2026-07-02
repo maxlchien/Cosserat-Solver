@@ -34,12 +34,8 @@ def test_simulation_agreement(simulation: str) -> None:
         f"Simulation {simulation} failed with error: {result.stderr}"
     )
 
-    statistics, pass_fail = analyze_agreement(simulation, TOL)
-    num_failed = statistics.get(
-        "num_failed", ValueError("num_failed not found in statistics")
-    )
-
-    if not pass_fail:
+    statistics, num_failed = analyze_agreement(simulation, TOL)
+    if num_failed > 0:
         error_messages = []
         for trace_name, stats in statistics.items():
             if stats["normalized_error"] > TOL:
@@ -58,13 +54,13 @@ def test_simulation_agreement(simulation: str) -> None:
 
 def analyze_agreement(
     simulation_name: str, tolerance: float = 1e-3
-) -> tuple[dict, bool]:
+) -> tuple[dict, int]:
     """
     Compare generated traces against a reference trace.
     If the accumulated error (normalized by the l1 norm of the trace) is above tolerance, the test fails.
 
     Returns:
-        A tuple containing a dictionary of statistics and a boolean indicating pass/fail.
+        A tuple containing a dictionary of statistics and the number of failed traces.
     """
     # load the filenames
     trace_list_path = TEST_DIR / f"data/{simulation_name}/trace_list.csv"
@@ -83,7 +79,6 @@ def analyze_agreement(
         trace_filenames = [validate_trace_line(line) for line in f.readlines()]
 
     statistics = {}
-    fail = False
     num_failed = 0
     for ref, computed in trace_filenames:
         # load the traces
@@ -134,9 +129,7 @@ def analyze_agreement(
             "max_error_norm": max_error_norm,
         }
         if normalized_error > tolerance:
-            fail = True
             num_failed += 1
 
-    # return a dict and boolean for pass/fail
-    statistics["num_failed"] = num_failed
-    return statistics, not fail
+    # return a dict and number of failed traces
+    return statistics, num_failed
