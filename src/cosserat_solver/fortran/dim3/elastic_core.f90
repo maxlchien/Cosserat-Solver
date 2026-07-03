@@ -2,7 +2,7 @@ module elastic_core
   use cosserat_kinds, only: rk
   implicit none
   private
-  public :: greens_displacement_force
+  public :: greens_displacement_force, greens_displacement_force_vectorized
 
   real(rk), parameter :: pi = 3.141592653589793238462643383279502884197_rk
 contains
@@ -94,5 +94,46 @@ contains
 
     G = (1.0_rk / (4.0_rk * pi * mu)) * (phi_s * identity(3) + (h_s - h_p) / (ks**2))
   end function greens_displacement_force
+
+  function greens_displacement_force_vectorized(x, omega_array, n_omega, &
+                                    rho, lam, mu, force_use_openmp, force_no_openmp) result(G_array)
+  real(rk), intent(in) :: x(3)
+  integer, intent(in) :: n_omega
+  real(rk), intent(in) :: omega_array(n_omega)
+  complex(rk) :: G_array(n_omega, 3, 3)
+  real(rk), intent(in) :: rho, lam, mu
+
+  integer :: i
+  complex(rk) :: G_loc(3,3)
+  logical, intent(in), optional :: force_use_openmp, force_no_openmp
+  logical :: use_openmp
+
+  ! Threshold for OpenMP parallelization
+  ! For small arrays, the overhead is not worth it
+  ! force_use_openmp and force_no_openmp are mutually exclusive
+  if (present(force_use_openmp) .and. force_use_openmp .and. present(force_no_openmp) &
+  .and. force_no_openmp) then
+    error stop "force_use_openmp and force_no_openmp are mutually exclusive"
+  else if (present(force_use_openmp) .and. force_use_openmp) then
+    use_openmp = .true.
+  else if (present(force_no_openmp) .and. force_no_openmp) then
+    use_openmp = .false.
+  else
+    ! Auto-decide: use OpenMP only for large arrays
+    use_openmp = (n_omega > 1000)
+  end if
+
+  if (use_openmp) then
+!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu) SCHEDULE(DYNAMIC)
+    do i = 1, n_omega
+      G_array(i, :, :) = greens_displacement_force(x, omega_array(i), rho, lam, mu)
+    end do
+!$OMP END PARALLEL DO
+  else
+    do i = 1, n_omega
+      G_array(i, :, :) = greens_displacement_force(x, omega_array(i), rho, lam, mu)
+    end do
+  end if
+end function greens_displacement_force_vectorized
 
 end module elastic_core

@@ -596,7 +596,6 @@ end function hankel1
         G_array(i, :, :) = G_loc
       end do
 !$OMP END PARALLEL DO
-      write (*,*) "OpenMP used for greens_x_omega_vectorized with n_omega =", n_omega
     else
       do i = 1, n_omega
         call greens_x_omega(x, omega_array(i), G_loc, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
