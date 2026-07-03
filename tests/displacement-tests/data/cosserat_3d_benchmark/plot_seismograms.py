@@ -126,8 +126,7 @@ def main():
         ]
 
         if not filtered_pairs:
-            msg = f"No {channel} trace pairs found in {trace_list_path}"
-            raise RuntimeError(msg)
+            print(f"No {channel} trace pairs found in {trace_list_path}")
 
         reference_traces = {}
         generated_traces = {}

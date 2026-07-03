@@ -2,10 +2,11 @@
 
 rule all:
     input:
-        # summary_plot=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement", "rotation"]),
+        summary_chart="OUTPUT_FILES/analysis/comparison_summary.txt",
+        plots=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement"]), # this can be edited to remove channels
         traces=expand(
             "OUTPUT_FILES/{network_name}.{station_name}.S2.{component}.{extension}",
-            station_name=["S0001", "S0002", "S0003", "S0004", "S0005"],# ,"S0005", "S0006", "S0007", "S0008", "S0009"],
+            station_name=["S0001", "S0002", "S0003", "S0004", "S0005" ,"S0005", "S0006", "S0007", "S0008", "S0009"],
             network_name=["AA"],
             component=["BXX", "BXY", "BXZ"],
             extension=["semr", "semd"],
@@ -25,18 +26,31 @@ rule run_solver:
         """
 
 
-# rule plot_seismogram:
-#     input:
-#         rules.run_solver.output.traces,
-#         "plot_seismograms.py",
-#     output:
-#         summary_plot=rules.all.input.summary_plot,
-#     localrule: True
-#     shell:
-#         """
-#             python plot_seismograms.py --include specfem fourier --channel rotation --title "Mixed Force Coupled Simulation, SPECFEMPP vs Fourier Solver"
-#             python plot_seismograms.py --include specfem fourier --channel displacement --title "Mixed Force Coupled Simulation, SPECFEMPP vs Fourier Solver"
-#         """
+rule run_analysis:
+    input:
+        rules.run_solver.output.traces,
+        "compare_traces.py",
+        "trace_list.csv",
+    output:
+        summary_plot=rules.all.input.summary_chart,
+    localrule: True
+    shell:
+        """
+            uv run compare_traces.py
+        """
+
+rule plot_seismograms:
+    input:
+        rules.run_solver.output.traces,
+        "plot_seismograms.py",
+        "trace_list.csv",
+    output:
+        plots=rules.all.input.plots,
+    localrule: True
+    shell:
+        """
+            uv run plot_seismograms.py
+        """
 
 rule clean:
     localrule: True
