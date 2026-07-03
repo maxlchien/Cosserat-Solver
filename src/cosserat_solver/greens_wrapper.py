@@ -93,6 +93,8 @@ def evaluate_greens_fortran(
     omega_array: np.ndarray,
     material_params: dict,
     material_type: int = MATERIAL_TYPE_COSSERAT,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
     Evaluate Green's function at multiple omega points using Fortran backend.
@@ -107,12 +109,21 @@ def evaluate_greens_fortran(
         Array of angular frequencies (real values)
     material_params : dict
         Material parameters (rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
 
     Returns
     -------
     greens : np.ndarray
         Complex array of shape (len(omega_array), 3, 3)
         Green's function evaluated at each omega
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True
     """
     if not FORTRAN_AVAILABLE:
         err = "Fortran backend not available."
@@ -139,49 +150,39 @@ def evaluate_greens_fortran(
             err = "Spatial location x must have shape (2,) for dimension 2."
             raise ValueError(err)
 
-        # Evaluate for each omega
-        n_omega = len(omega_array)
-        greens = np.zeros((n_omega, 3, 3), dtype=np.complex128)
-
-        for i, omega in enumerate(omega_array):
-            # Convert omega to complex
-            omega_complex = complex(omega)
-            # Get Green's function as nested tuple
-            G_tuple = integrator.greens_x_omega(x.tolist(), omega_complex)
-            # Convert to numpy array
-            greens[i] = np.array(G_tuple, dtype=np.complex128)
-
-        return greens
+        # Use vectorized backend - automatically handles array
+        return integrator.greens_x_omega_vectorized(
+            x.tolist(),  # Convert to list for Fortran compatibility
+            omega_array,
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )
     if dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
         # For 3D elastic, use the elastic_3d_wrapper
         rho = material_params["rho"]
         lam = material_params["lam"]
         mu = material_params["mu"]
 
-        n_omega = len(omega_array)
-        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        for i, omega in enumerate(omega_array):
-            G_tuple = elastic_3d_wrapper.greens_mixed_force(
-                x,
-                omega,
-                rho,
-                lam,
-                mu,
-                0,
-                1,
-                0,
-                0,
-                0,  # dummy values for nu, J, ... due to API
-            )
-            greens[i] = np.array(G_tuple, dtype=np.complex128)
+        return elastic_3d_wrapper.greens_mixed_force_vectorized(
+            x,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            0,
+            1,
+            0,
+            0,
+            0,  # dummy values for nu, J, ... due to API
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_omega, 6, 6)
 
-        return greens
     if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
         # For 3D Cosserat, use the cosserat_3d_wrapper
         rho = material_params["rho"]
@@ -193,21 +194,25 @@ def evaluate_greens_fortran(
         mu_c = material_params["mu_c"]
         nu_c = material_params["nu_c"]
 
-        n_omega = len(omega_array)
-        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        for i, omega in enumerate(omega_array):
-            G_tuple = cosserat_3d_wrapper.greens_mixed_force(
-                x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-            )
-            greens[i] = np.array(G_tuple, dtype=np.complex128)
-
-        return greens
+        return cosserat_3d_wrapper.greens_mixed_force_vectorized(
+            x,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            nu,
+            J,
+            lam_c,
+            mu_c,
+            nu_c,
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_omega, 6, 6)
     err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
     raise ValueError(err)
 
@@ -273,6 +278,8 @@ def get_greens_callback(
     use_fortran: bool,
     material_type: int,
     digits_precision: int = consts.COMPUTE_PRECISION,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
 ) -> Callable:
     """
     Returns a callback function for evaluating Green's function spectrum.
@@ -296,6 +303,10 @@ def get_greens_callback(
         Type of material (e.g., MATERIAL_TYPE_COSSERAT)
     digits_precision : int
         Number of digits for mpmath precision (Python backend only)
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
 
     Returns
     -------
@@ -351,21 +362,19 @@ def get_greens_callback(
                     else:
                         squeeze_output = False
 
-                    n_omega = len(omega_array)
-                    spectrum = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+                    # Use vectorized backend with OpenMP control flags
+                    G_omega = integrator_fortran.greens_x_omega_vectorized(
+                        x_2d,
+                        omega_array,
+                        force_use_openmp=force_use_openmp,
+                        force_no_openmp=force_no_openmp,
+                    )
 
-                    for i, omega in enumerate(omega_array):
-                        # Evaluate Green's function
-                        G_tuple = integrator_fortran.greens_x_omega(
-                            x_2d, complex(omega)
-                        )
-                        G = np.array(G_tuple, dtype=np.complex128)  # shape (3, 3)
-
-                        # Get source spectrum
-                        source_mag = source.spectrum(float(omega))
-
-                        # Multiply by source magnitude: G * source_magnitude
-                        spectrum[i] = G * source_mag
+                    # Multiply by source spectrum for each frequency
+                    source_mag = source.spectrum_vectorized(omega_array)
+                    spectrum = (
+                        G_omega * source_mag[:, np.newaxis, np.newaxis]
+                    )  # shape (N, 3, 3)
 
                     return spectrum[0] if squeeze_output else spectrum
 
@@ -402,29 +411,27 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                n_omega = len(omega_array)
-                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+                G_omega = elastic_3d_wrapper.greens_mixed_force_vectorized(
+                    x,
+                    omega_array,
+                    rho,
+                    lam,
+                    mu,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,  # dummy values for nu, J, ... due to API
+                    force_use_openmp=force_use_openmp,
+                    force_no_openmp=force_no_openmp,
+                )  # shape (n_omega, 6, 6)
 
-                for i, omega in enumerate(omega_array):
-                    G_tuple = elastic_3d_wrapper.greens_mixed_force(
-                        x,
-                        omega,
-                        rho,
-                        lam,
-                        mu,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,  # dummy values for nu, J, ... due to API
-                    )
-                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
-
-                    # Get source spectrum
-                    source_mag = source.spectrum(float(omega))
-
-                    # Multiply by source magnitude: G * source_magnitude
-                    spectrum[i] = G * source_mag
+                # Get source spectrum
+                source_mag = source.spectrum_vectorized(omega_array)
+                # Multiply by source magnitude: G * source_magnitude
+                spectrum = (
+                    G_omega * source_mag[:, np.newaxis, np.newaxis]
+                )  # shape (N, 6, 6)
 
                 return spectrum[0] if squeeze_output else spectrum
 
@@ -460,20 +467,27 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                n_omega = len(omega_array)
-                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+                G_omega = cosserat_3d_wrapper.greens_mixed_force_vectorized(
+                    x,
+                    omega_array,
+                    rho,
+                    lam,
+                    mu,
+                    nu,
+                    J,
+                    lam_c,
+                    mu_c,
+                    nu_c,
+                    force_use_openmp=force_use_openmp,
+                    force_no_openmp=force_no_openmp,
+                )  # shape (n_omega, 6, 6)
 
-                for i, omega in enumerate(omega_array):
-                    G_tuple = cosserat_3d_wrapper.greens_mixed_force(
-                        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-                    )
-                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
-
-                    # Get source spectrum
-                    source_mag = source.spectrum(float(omega))
-
-                    # Multiply by source magnitude: G * source_magnitude
-                    spectrum[i] = G * source_mag
+                # Get source spectrum
+                source_mag = source.spectrum_vectorized(omega_array)
+                # Multiply by source magnitude: G * source_magnitude
+                spectrum = (
+                    G_omega * source_mag[:, np.newaxis, np.newaxis]
+                )  # shape (N, 6, 6)
 
                 return spectrum[0] if squeeze_output else spectrum
 

@@ -20,13 +20,12 @@ source_params:
   fc: [0.0, 0.0, 0.0]
 
 ft_params:
-  dt: 0.05
-  N: 750
-  refinement_factor: 1
-  extension_factor: 64
+  dt: 0.01
+  N: 3750
+  refinement_factor: 2
+  extension_factor: 4
 
 seismogram_locations:
-  - [5000, 5000, 5000]
   - [10000, 10000, 10000]
   - [15000, 15000, 15000]
   - [20000, 20000, 20000]

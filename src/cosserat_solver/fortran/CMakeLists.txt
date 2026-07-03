@@ -14,6 +14,14 @@ add_custom_command(
   VERBATIM
 )
 
+# --- Find OpenMP ---
+find_package(OpenMP)
+if(OpenMP_Fortran_FOUND)
+  message(STATUS "OpenMP found for Fortran: ${OpenMP_Fortran_FLAGS}")
+else()
+  message(WARNING "OpenMP not found. Vectorized operations will run serially.")
+endif()
+
 # --- Build compiled library ---
 add_library(kinds STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/kinds.f90
@@ -23,6 +31,7 @@ target_compile_options(kinds PRIVATE
   -fdefault-real-8
   -fdefault-double-8
 )
+
 set_target_properties(kinds PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/kinds
@@ -45,6 +54,11 @@ set_target_properties(dim2_cosserat PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim2/cosserat
 )
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dim2_cosserat PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim2_cosserat PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 add_library(dim3_cosserat STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/dim3/dispersion_core.f90
@@ -61,6 +75,11 @@ set_target_properties(dim3_cosserat PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim3/cosserat
 )
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dim3_cosserat PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim3_cosserat PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 add_library(dim3_elastic STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/dim3/elastic_core.f90
@@ -75,6 +94,11 @@ set_target_properties(dim3_elastic PROPERTIES
   POSITION_INDEPENDENT_CODE ON
   Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim3/elastic
 )
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dim3_elastic PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim3_elastic PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 # --- AMOS/SLATEC integration in subfolder fortran/amos ---
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/amos/amos_deps.txt" AMOS_SOURCES)

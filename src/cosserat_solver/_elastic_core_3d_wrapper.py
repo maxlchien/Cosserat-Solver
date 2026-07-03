@@ -111,6 +111,111 @@ def greens_mixed_force(
     return G
 
 
+def greens_mixed_force_vectorized(
+    x: np.ndarray,
+    omega: float | np.ndarray,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
+
+    Automatically detects whether omega is scalar or array and handles appropriately.
+    Scalar inputs are converted to length-1 arrays internally for unified processing.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        3D position vector [x, y, z]
+    omega : float | np.ndarray
+        Angular frequency (scalar) or array of angular frequencies
+    rho : float
+        Density of the medium
+    lam : float
+        Lamé's first parameter
+    mu : float
+        Shear modulus
+    nu : float
+        Cosserat couple modulus
+    J : float
+        Micro-inertia
+    lam_c : float
+        Cosserat Lamé's first parameter
+    mu_c : float
+        Cosserat shear modulus
+    nu_c : float
+        Cosserat couple modulus
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+        Mutually exclusive with force_no_openmp.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
+        Mutually exclusive with force_use_openmp.
+
+    Returns
+    -------
+    np.ndarray
+        If omega is scalar: shape (3, 3) complex array
+        If omega is array: shape (n_omega, 3, 3) complex array
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True
+    """
+    # Validate mutual exclusivity
+    if force_use_openmp and force_no_openmp:
+        err = "force_use_openmp and force_no_openmp are mutually exclusive"
+        raise ValueError(err)
+
+    # Detect if omega is scalar or array
+    if np.isscalar(omega):
+        # Scalar case - wrap in array
+        omega_array = np.array([float(omega)], dtype=float)
+        squeeze_output = True
+    else:
+        # Array case
+        omega_array = np.asarray(omega, dtype=float)
+        if omega_array.ndim != 1:
+            err = "omega must be scalar or 1D array"
+            raise ValueError(err)
+        squeeze_output = False
+
+    disp_block = greens_displacement_force_vectorized(
+        x,
+        omega_array,
+        rho,
+        lam,
+        mu,
+        nu,
+        J,
+        lam_c,
+        mu_c,
+        nu_c,
+        force_use_openmp,
+        force_no_openmp,
+    )
+
+    n_omega = len(omega_array)
+
+    # Return scalar result if input was scalar
+    if squeeze_output:
+        G = np.zeros((6, 6), dtype=np.complex128)
+        G[:, :3] = disp_block[0]
+        return G
+    G = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+    G[:, :, :3] = disp_block
+    return G
+
+
 def greens_displacement_force_from_dict(
     x: np.ndarray,
     omega: float,
@@ -210,13 +315,121 @@ def greens_displacement_force(
     return G
 
 
+def greens_displacement_force_vectorized(
+    x: np.ndarray,
+    omega: float | np.ndarray,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a displacement force source in a 3D elastic medium.
+
+    Automatically detects whether omega is scalar or array and handles appropriately.
+    Scalar inputs are converted to length-1 arrays internally for unified processing.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        3D position vector [x, y, z]
+    omega : float | np.ndarray
+        Angular frequency (scalar) or array of angular frequencies
+    rho : float
+        Density of the medium
+    lam : float
+        Lamé's first parameter
+    mu : float
+        Shear modulus
+    nu : float
+        Cosserat couple modulus
+    J : float
+        Micro-inertia
+    lam_c : float
+        Cosserat Lamé's first parameter
+    mu_c : float
+        Cosserat shear modulus
+    nu_c : float
+        Cosserat couple modulus
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+        Mutually exclusive with force_no_openmp.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
+        Mutually exclusive with force_use_openmp.
+
+    Returns
+    -------
+    np.ndarray
+        If omega is scalar: shape (6, 3) complex array
+        If omega is array: shape (n_omega, 6, 3) complex array
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True
+    """
+    _ = (nu, J, lam_c, mu_c, nu_c)  # Unused parameters for the elastic case
+
+    # Validate mutual exclusivity
+    if force_use_openmp and force_no_openmp:
+        err = "force_use_openmp and force_no_openmp are mutually exclusive"
+        raise ValueError(err)
+
+    # Detect if omega is scalar or array
+    if np.isscalar(omega):
+        # Scalar case - wrap in array
+        omega_array = np.array([float(omega)], dtype=float)
+        squeeze_output = True
+    else:
+        # Array case
+        omega_array = np.asarray(omega, dtype=float)
+        if omega_array.ndim != 1:
+            err = "omega must be scalar or 1D array"
+            raise ValueError(err)
+        squeeze_output = False
+
+    # Call vectorized Fortran backend
+    # Returns list of tuples (one per omega)
+    result_list = elastic_core_3d.greens_displacement_force_vectorized(
+        x,
+        omega_array,
+        rho,
+        lam,
+        mu,
+        int(force_use_openmp),
+        int(force_no_openmp),
+    )
+
+    # Convert list of tuples to numpy array
+    n_omega = len(result_list)
+    result_array = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+    for i, matrix_tuple in enumerate(result_list):
+        result_array[i] = np.array(matrix_tuple, dtype=np.complex128)
+
+    # Return scalar result if input was scalar
+    if squeeze_output:
+        G = np.zeros((6, 3), dtype=np.complex128)
+        G[:3, :] = result_array[0]
+        return G
+    G = np.zeros((n_omega, 6, 3), dtype=np.complex128)
+    G[:, :3, :] = result_array
+    return G
+
+
 def greens_rotation_force_from_dict(
     x: np.ndarray,
     omega: float,
     material_params: dict,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
 
     Parameters:
         x: np.ndarray
@@ -266,7 +479,7 @@ def greens_rotation_force(
     nu_c: float,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
 
     Parameters:
         x: np.ndarray
@@ -320,3 +533,101 @@ def greens_rotation_force(
     return np.zeros(
         (6, 3), dtype=np.complex128
     )  # No response for rotation force in the elastic case
+
+
+def greens_rotation_force_vectorized(
+    x: np.ndarray,
+    omega: float | np.ndarray,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
+
+    Automatically detects whether omega is scalar or array and handles appropriately.
+    Scalar inputs are converted to length-1 arrays internally for unified processing.
+
+    Parameters
+    ----------
+    x : np.ndarray
+        3D position vector [x, y, z]
+    omega : float | np.ndarray
+        Angular frequency (scalar) or array of angular frequencies
+    rho : float
+        Density of the medium
+    lam : float
+        Lamé's first parameter
+    mu : float
+        Shear modulus
+    nu : float
+        Cosserat couple modulus
+    J : float
+        Micro-inertia
+    lam_c : float
+        Cosserat Lamé's first parameter
+    mu_c : float
+        Cosserat shear modulus
+    nu_c : float
+        Cosserat couple modulus
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+        Mutually exclusive with force_no_openmp.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
+        Mutually exclusive with force_use_openmp.
+
+    Returns
+    -------
+    np.ndarray
+        If omega is scalar: shape (3, 3) complex array (all zeros)
+        If omega is array: shape (n_omega, 3, 3) complex array (all zeros)
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True
+    """
+    _ = (
+        x,
+        rho,
+        lam,
+        mu,
+        nu,
+        J,
+        lam_c,
+        mu_c,
+        nu_c,
+    )  # all parameters unused for rotation
+
+    # Validate mutual exclusivity
+    if force_use_openmp and force_no_openmp:
+        err = "force_use_openmp and force_no_openmp are mutually exclusive"
+        raise ValueError(err)
+
+    # Detect if omega is scalar or array
+    if np.isscalar(omega):
+        # Scalar case - wrap in array
+        omega_array = np.array([float(omega)], dtype=float)
+        squeeze_output = True
+    else:
+        # Array case
+        omega_array = np.asarray(omega, dtype=float)
+        if omega_array.ndim != 1:
+            err = "omega must be scalar or 1D array"
+            raise ValueError(err)
+        squeeze_output = False
+
+    # Return zero array since rotation force has no response in the elastic case
+    # Squeeze output if omega was scalar
+    n_omega = len(omega_array)
+    if squeeze_output:
+        return np.zeros((6, 3), dtype=np.complex128)
+    return np.zeros((n_omega, 6, 3), dtype=np.complex128)
