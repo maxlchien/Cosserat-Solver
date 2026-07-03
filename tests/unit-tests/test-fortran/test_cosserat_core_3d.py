@@ -181,3 +181,186 @@ def test_compare_greens_rotation_static(material_parameters, location_3d):
     assert np.allclose(fortran_greens, python_greens, atol=1e-12), (
         f"Static rotation Green's function does not match:\nFortran={fortran_greens},\nPython={python_greens}"
     )
+
+
+def test_mixed_vectorized(material_parameters, location_3d):
+    """Test that the mixed Green's function matches the Python implementation."""
+
+    omega_array = np.logspace(-7, 5, num=100)
+    # serial computation
+    greens_serial = np.zeros((len(omega_array), 6, 6), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial[i] = _cosserat_core_3d_wrapper.greens_mixed_force(
+            location_3d,
+            omega,
+            material_parameters["rho"],
+            material_parameters["lam"],
+            material_parameters["mu"],
+            material_parameters["nu"],
+            material_parameters["J"],
+            material_parameters["lam_c"],
+            material_parameters["mu_c"],
+            material_parameters["nu_c"],
+        )
+
+    # serial computation with the vectorized function
+    greens_serial_vectorized = np.zeros((len(omega_array), 6, 6), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial_vectorized[i] = (
+            _cosserat_core_3d_wrapper.greens_mixed_force_vectorized(
+                location_3d,
+                omega,
+                material_parameters["rho"],
+                material_parameters["lam"],
+                material_parameters["mu"],
+                material_parameters["nu"],
+                material_parameters["J"],
+                material_parameters["lam_c"],
+                material_parameters["mu_c"],
+                material_parameters["nu_c"],
+            )
+        )  # when passing a scalar, the vectorized call should squeeze automatically
+
+    # vectorized computation
+    greens_vectorized = _cosserat_core_3d_wrapper.greens_mixed_force_vectorized(
+        location_3d,
+        omega_array,
+        material_parameters["rho"],
+        material_parameters["lam"],
+        material_parameters["mu"],
+        material_parameters["nu"],
+        material_parameters["J"],
+        material_parameters["lam_c"],
+        material_parameters["mu_c"],
+        material_parameters["nu_c"],
+        force_use_openmp=True,
+    )
+
+    assert np.allclose(greens_serial, greens_vectorized, atol=1e-12), (
+        f"Vectorized mixed Green's function does not match serial computation: Serial={greens_serial}, Vectorized={greens_vectorized}"
+    )
+    assert np.allclose(greens_serial, greens_serial_vectorized, atol=1e-12), (
+        f"Vectorized mixed with scalar input does not match serial computation: Serial={greens_serial}, Scalar input={greens_serial_vectorized}"
+    )
+
+
+def test_displacement_vectorized(material_parameters, location_3d):
+    """Test that the displacement Green's function matches the Python implementation."""
+
+    omega_array = np.logspace(-7, 5, num=100)
+    # serial computation
+    greens_serial = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial[i] = _cosserat_core_3d_wrapper.greens_displacement_force(
+            location_3d,
+            omega,
+            material_parameters["rho"],
+            material_parameters["lam"],
+            material_parameters["mu"],
+            material_parameters["nu"],
+            material_parameters["J"],
+            material_parameters["lam_c"],
+            material_parameters["mu_c"],
+            material_parameters["nu_c"],
+        )
+
+    # serial computation with the vectorized function
+    greens_serial_vectorized = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial_vectorized[i] = (
+            _cosserat_core_3d_wrapper.greens_displacement_force_vectorized(
+                location_3d,
+                omega,
+                material_parameters["rho"],
+                material_parameters["lam"],
+                material_parameters["mu"],
+                material_parameters["nu"],
+                material_parameters["J"],
+                material_parameters["lam_c"],
+                material_parameters["mu_c"],
+                material_parameters["nu_c"],
+            )
+        )  # when passing a scalar, the vectorized call should squeeze automatically
+
+    # vectorized computation
+    greens_vectorized = _cosserat_core_3d_wrapper.greens_displacement_force_vectorized(
+        location_3d,
+        omega_array,
+        material_parameters["rho"],
+        material_parameters["lam"],
+        material_parameters["mu"],
+        material_parameters["nu"],
+        material_parameters["J"],
+        material_parameters["lam_c"],
+        material_parameters["mu_c"],
+        material_parameters["nu_c"],
+        force_use_openmp=True,
+    )
+
+    assert np.allclose(greens_serial, greens_vectorized, atol=1e-12), (
+        f"Vectorized displacement Green's function does not match serial computation: Serial={greens_serial}, Vectorized={greens_vectorized}"
+    )
+    assert np.allclose(greens_serial, greens_serial_vectorized, atol=1e-12), (
+        f"Vectorized displacement with scalar input does not match serial computation: Serial={greens_serial}, Scalar input={greens_serial_vectorized}"
+    )
+
+
+def test_rotation_vectorized(material_parameters, location_3d):
+    """Test that the rotation Green's function matches the Python implementation."""
+
+    omega_array = np.logspace(-7, 5, num=100)
+    # serial computation
+    greens_serial = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial[i] = _cosserat_core_3d_wrapper.greens_rotation_force(
+            location_3d,
+            omega,
+            material_parameters["rho"],
+            material_parameters["lam"],
+            material_parameters["mu"],
+            material_parameters["nu"],
+            material_parameters["J"],
+            material_parameters["lam_c"],
+            material_parameters["mu_c"],
+            material_parameters["nu_c"],
+        )
+
+    # serial computation with the vectorized function
+    greens_serial_vectorized = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
+    for i, omega in enumerate(omega_array):
+        greens_serial_vectorized[i] = (
+            _cosserat_core_3d_wrapper.greens_rotation_force_vectorized(
+                location_3d,
+                omega,
+                material_parameters["rho"],
+                material_parameters["lam"],
+                material_parameters["mu"],
+                material_parameters["nu"],
+                material_parameters["J"],
+                material_parameters["lam_c"],
+                material_parameters["mu_c"],
+                material_parameters["nu_c"],
+            )
+        )  # when passing a scalar, the vectorized call should squeeze automatically
+
+    # vectorized computation
+    greens_vectorized = _cosserat_core_3d_wrapper.greens_rotation_force_vectorized(
+        location_3d,
+        omega_array,
+        material_parameters["rho"],
+        material_parameters["lam"],
+        material_parameters["mu"],
+        material_parameters["nu"],
+        material_parameters["J"],
+        material_parameters["lam_c"],
+        material_parameters["mu_c"],
+        material_parameters["nu_c"],
+        force_use_openmp=True,
+    )
+
+    assert np.allclose(greens_serial, greens_vectorized, atol=1e-12), (
+        f"Vectorized rotation Green's function does not match serial computation: Serial={greens_serial}, Vectorized={greens_vectorized}"
+    )
+    assert np.allclose(greens_serial, greens_serial_vectorized, atol=1e-12), (
+        f"Vectorized rotation with scalar input does not match serial computation: Serial={greens_serial}, Scalar input={greens_serial_vectorized}"
+    )
