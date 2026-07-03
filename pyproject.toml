@@ -13,11 +13,12 @@ dependencies = ["numpy", "scipy", "mpmath", "pyyaml", "matplotlib", "obspy"]
 [dependency-groups]
 test = ["pytest", "pytest-xdist", "pytest-timeout",
     "numpy",
-    "scikit-build-core",]
+    "scikit-build-core", "snakemake"]
 dev = [
     { include-group = "test"},
     "numpy",
     "scikit-build-core",
+    "snakemake",
 ]
 nox = [
     "nox>=2025.5.1",

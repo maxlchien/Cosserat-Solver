@@ -720,12 +720,12 @@ static PyMethodDef IntegratorMethods[] = {
 
 static struct PyModuleDef integratormodule = {
     PyModuleDef_HEAD_INIT,
-    "integrator_core",
+    "integrator_core_2d",
     "Cosserat Green's function integrator",
     -1,
     IntegratorMethods
 };
 
-PyMODINIT_FUNC PyInit_integrator_core(void) {
+PyMODINIT_FUNC PyInit_integrator_core_2d(void) {
     return PyModule_Create(&integratormodule);
 }

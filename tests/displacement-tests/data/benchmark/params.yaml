@@ -22,7 +22,7 @@ ft_params:
   dt: 0.01
   N: 5000
   refinement_factor: 1
-  extension_factor: 50
+  extension_factor: 128
 
 seismogram_locations:
   - [0, 10000, 0]

@@ -1,6 +1,6 @@
 """
 Test the fortran wrapper module _dispersion_core_wrapper.
-Due to roudning issues in the callback function, only the following aspects are tested:
+Due to rounding issues in the callback function, only the following aspects are tested:
 - That coefficients A, B, C, and c_pm, c_pm_prime are the same as their Python equivalents, up to double float tolerance
 - That dispersion(r) is zero, up to double float tolerance
 
@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver._dispersion_core_wrapper import DispersionHelperFortran
+from cosserat_solver._dispersion_core_2d_wrapper import DispersionHelperFortran
 from cosserat_solver.dispersion import DispersionHelper as DispersionHelperPython
 
 

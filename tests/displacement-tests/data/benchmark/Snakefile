@@ -21,7 +21,7 @@ rule run_solver:
     localrule: True
     shell:
         """
-            uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES --use-python-backend
+            uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES
         """
 
 

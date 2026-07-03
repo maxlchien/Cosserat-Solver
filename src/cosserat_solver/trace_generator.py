@@ -6,7 +6,7 @@ import numpy as np
 
 import cosserat_solver.consts as consts
 import cosserat_solver.fourier as fourier
-from cosserat_solver.greens_wrapper import get_greens_callback
+from cosserat_solver.greens_wrapper import get_greens_callback, get_material_tag
 from cosserat_solver.source import SourceSpectrum
 
 channels_2d = ["BXX.semd", "BXZ.semd", "BXY.semr"]
@@ -89,6 +89,11 @@ def generate_trace(
         err = f"Spatial location x must have length {dim} for dimension {dim}."
         raise ValueError(err)
 
+    if "material_type" not in material_params:
+        err = "Material type must be specified in material_params with key 'material_type'."
+        raise ValueError(err)
+    material_tag = get_material_tag(material_params["material_type"])
+
     # for safety since we may edit this
     ft_params = ft_params.copy()
 
@@ -97,7 +102,8 @@ def generate_trace(
         dim,
         material_params,
         source,
-        use_fortran=use_fortran,
+        use_fortran,
+        material_tag,
         digits_precision=digits_precision,
     )
 

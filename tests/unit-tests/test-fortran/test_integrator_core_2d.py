@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver._integrator_core_wrapper import IntegratorFortran
+from cosserat_solver._integrator_core_2d_wrapper import IntegratorFortran
 from cosserat_solver.integrator import Integrator
 
 
