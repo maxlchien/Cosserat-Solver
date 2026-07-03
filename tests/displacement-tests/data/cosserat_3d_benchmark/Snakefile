@@ -1,0 +1,60 @@
+
+
+rule all:
+    input:
+        summary_chart="OUTPUT_FILES/analysis/comparison_summary.txt",
+        plots=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement", "rotation"]), # this can be edited to remove channels
+        traces=expand(
+            "OUTPUT_FILES/{network_name}.{station_name}.S2.{component}.{extension}",
+            station_name=["S0001", "S0002", "S0003", "S0004", "S0005"],# ,"S0005", "S0006", "S0007", "S0008", "S0009"],
+            network_name=["AA"],
+            component=["BXX", "BXY", "BXZ"],
+            extension=["semr", "semd"],
+        ),
+    localrule: True
+
+
+rule run_solver:
+    input:
+        params="params.yaml",
+    output:
+        traces=rules.all.input.traces,
+    localrule: True
+    shell:
+        """
+            uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES
+        """
+
+
+rule run_analysis:
+    input:
+        rules.run_solver.output.traces,
+        "compare_traces.py",
+        "trace_list.csv",
+    output:
+        summary_plot=rules.all.input.summary_chart,
+    localrule: True
+    shell:
+        """
+            uv run compare_traces.py
+        """
+
+rule plot_seismograms:
+    input:
+        rules.run_solver.output.traces,
+        "plot_seismograms.py",
+        "trace_list.csv",
+    output:
+        plots=rules.all.input.plots,
+    localrule: True
+    shell:
+        """
+            uv run plot_seismograms.py
+        """
+
+rule clean:
+    localrule: True
+    shell:
+        """
+            rm -rf OUTPUT_FILES
+        """

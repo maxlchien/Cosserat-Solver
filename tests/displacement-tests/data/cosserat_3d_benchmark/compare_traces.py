@@ -218,11 +218,12 @@ def validate_and_match_traces(reference_traces, computed_traces, tolerance=1e-6)
     return matched_pairs
 
 
-def compute_metrics(disp_spec, disp_four):
+def compute_metrics(disp_ref, disp_comp):
     """
     Compute comparison metrics between two displacement arrays (same time grid).
 
     Returns dict with keys:
+      - l1_normalized: l1 norm of difference normalized by l1 norm of computed
       - max_reference, max_computed: maximum absolute amplitudes
       - max_abs_diff: maximum absolute difference
       - rms_abs_diff: RMS absolute difference
@@ -231,19 +232,24 @@ def compute_metrics(disp_spec, disp_four):
       - rel_diff_overall: absolute difference divided by trace magnitude (%)
       - correlation: Pearson correlation coefficient
     """
+
+    l1_error = np.sum(np.abs(disp_ref - disp_comp))
+    l1_comp = np.sum(np.abs(disp_comp))
+    l1_normalized = l1_error / l1_comp if l1_comp > 0 else float("inf")
+
     # Max absolute values
-    max_spec = np.max(np.abs(disp_spec))
-    max_four = np.max(np.abs(disp_four))
+    max_ref = np.max(np.abs(disp_ref))
+    max_comp = np.max(np.abs(disp_comp))
 
     # Absolute difference
-    abs_diff = np.abs(disp_spec - disp_four)
+    abs_diff = np.abs(disp_ref - disp_comp)
     max_abs_diff = np.max(abs_diff)
     rms_abs_diff = np.sqrt(np.mean(abs_diff**2))
 
     # Point-by-point relative difference (avoid division by zero)
     with np.errstate(divide="ignore", invalid="ignore"):
         rel_diff_pointwise = (
-            np.abs((disp_spec - disp_four) / (np.abs(disp_spec) + 1e-15)) * 100
+            np.abs((disp_ref - disp_comp) / (np.abs(disp_ref) + 1e-15)) * 100
         )
         rel_diff_pointwise = rel_diff_pointwise[np.isfinite(rel_diff_pointwise)]
 
@@ -255,7 +261,7 @@ def compute_metrics(disp_spec, disp_four):
     )
 
     # Overall relative difference: mean of absolute differences / trace magnitude
-    trace_magnitude = max_spec
+    trace_magnitude = max_ref
     if trace_magnitude > 0:
         rel_diff_overall = (np.mean(abs_diff) / trace_magnitude) * 100
     else:
@@ -263,19 +269,20 @@ def compute_metrics(disp_spec, disp_four):
 
     # Correlation
     try:
-        corr, _ = pearsonr(disp_spec, disp_four)
+        corr, _ = pearsonr(disp_ref, disp_comp)
     except Exception:
         corr = np.nan
 
     # Normalized max absolute difference
-    max_amplitude = max(max_spec, max_four)
+    max_amplitude = max(max_ref, max_comp)
     norm_max_abs_diff = (
         (max_abs_diff / max_amplitude) * 100 if max_amplitude > 0 else 0.0
     )
 
     return {
-        "max_reference": max_spec,
-        "max_computed": max_four,
+        "l1_normalized": l1_normalized,
+        "max_reference": max_ref,
+        "max_computed": max_comp,
         "norm_max_abs_diff": norm_max_abs_diff,
         "max_abs_diff": max_abs_diff,
         "rms_abs_diff": rms_abs_diff,
@@ -307,7 +314,7 @@ def generate_summary_report(all_metrics_by_channel, output_file):
             f.write(f"\n{channel_name.upper()} CHANNEL\n")
             f.write("-" * 155 + "\n")
             f.write(
-                f"{'Station':<10} {'Channel':<8} {'NormMaxDiff(%)':<18} {'Max AbsDiff':<15} "
+                f"{'Station':<10} {'Channel':<8} {'Norm l1':<18} {'NormMaxDiff(%)':<18} {'Max AbsDiff':<15} "
                 f"{'RMS AbsDiff':<15} {'Max RelDiff(pp)(%)':<18} {'Mean RelDiff(pp)(%)':<18} "
                 f"{'RelDiff(overall)(%)':<18} {'Correlation':<12} {'Max REF':<15} {'Max COMP':<15}\n"
             )
@@ -318,8 +325,9 @@ def generate_summary_report(all_metrics_by_channel, output_file):
             ):
                 station, channel = parse_reference_trace_label(reference_name)
                 f.write(
-                    f"{station:<10} {channel:<8} {metrics['norm_max_abs_diff']:<18.6f} "
-                    f"{metrics['max_abs_diff']:<15.6e} {metrics['rms_abs_diff']:<15.6e} "
+                    f"{station:<10} {channel:<8} {metrics['l1_normalized']:<18.6f} "
+                    f"{metrics['norm_max_abs_diff']:<18.6f} {metrics['max_abs_diff']:<15.6e} "
+                    f"{metrics['rms_abs_diff']:<15.6e} "
                     f"{metrics['max_rel_diff_pointwise']:<18.6f} {metrics['mean_rel_diff_pointwise']:<18.6f} "
                     f"{metrics['rel_diff_overall']:<18.6f} {metrics['correlation']:<12.6f} "
                     f"{metrics['max_reference']:<15.6e} {metrics['max_computed']:<15.6e}\n"
@@ -327,6 +335,9 @@ def generate_summary_report(all_metrics_by_channel, output_file):
 
         f.write("\n" + "=" * 155 + "\n")
         f.write("LEGEND (Quality Metrics - Lower is Better):\n")
+        f.write(
+            "  Norm l1:               L1 norm of difference normalized by L1 norm of computed trace (used in testing with tolerance 1e-3)\n"
+        )
         f.write(
             "  NormMaxDiff(%):        max(|REF-COMP|) / max(max|REF|, max|COMP|) as percentage\n"
         )
@@ -373,11 +384,11 @@ def generate_plots(
 
     # Group by reference station
     by_station = {}
-    for spec_key, four_key, time in matched_pairs:
-        station = spec_key[0]
+    for ref_key, comp_key, time in matched_pairs:
+        station = ref_key[0]
         if station not in by_station:
             by_station[station] = []
-        by_station[station].append((spec_key, four_key, time))
+        by_station[station].append((ref_key, comp_key, time))
 
     # Create one figure per station
     for station in sorted(by_station.keys()):
