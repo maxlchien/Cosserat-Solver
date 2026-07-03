@@ -150,9 +150,6 @@ def evaluate_greens_fortran(
             err = "Spatial location x must have shape (2,) for dimension 2."
             raise ValueError(err)
 
-        # Evaluate for each omega
-        n_omega = len(omega_array)
-
         # Use vectorized backend - automatically handles array
         return integrator.greens_x_omega_vectorized(
             x.tolist(),  # Convert to list for Fortran compatibility
@@ -166,30 +163,26 @@ def evaluate_greens_fortran(
         lam = material_params["lam"]
         mu = material_params["mu"]
 
-        n_omega = len(omega_array)
-        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        for i, omega in enumerate(omega_array):
-            G_tuple = elastic_3d_wrapper.greens_mixed_force(
-                x,
-                omega,
-                rho,
-                lam,
-                mu,
-                0,
-                1,
-                0,
-                0,
-                0,  # dummy values for nu, J, ... due to API
-            )
-            greens[i] = np.array(G_tuple, dtype=np.complex128)
+        return elastic_3d_wrapper.greens_mixed_force_vectorized(
+            x,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            0,
+            1,
+            0,
+            0,
+            0,  # dummy values for nu, J, ... due to API
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_omega, 6, 6)
 
-        return greens
     if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
         # For 3D Cosserat, use the cosserat_3d_wrapper
         rho = material_params["rho"]
@@ -201,21 +194,25 @@ def evaluate_greens_fortran(
         mu_c = material_params["mu_c"]
         nu_c = material_params["nu_c"]
 
-        n_omega = len(omega_array)
-        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        for i, omega in enumerate(omega_array):
-            G_tuple = cosserat_3d_wrapper.greens_mixed_force(
-                x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-            )
-            greens[i] = np.array(G_tuple, dtype=np.complex128)
-
-        return greens
+        return cosserat_3d_wrapper.greens_mixed_force_vectorized(
+            x,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            nu,
+            J,
+            lam_c,
+            mu_c,
+            nu_c,
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_omega, 6, 6)
     err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
     raise ValueError(err)
 
@@ -365,7 +362,6 @@ def get_greens_callback(
                     else:
                         squeeze_output = False
 
-                    n_omega = len(omega_array)
                     # Use vectorized backend with OpenMP control flags
                     G_omega = integrator_fortran.greens_x_omega_vectorized(
                         x_2d,
@@ -375,9 +371,10 @@ def get_greens_callback(
                     )
 
                     # Multiply by source spectrum for each frequency
-                    spectrum = np.zeros((n_omega, 3, 3), dtype=np.complex128)
                     source_mag = source.spectrum_vectorized(omega_array)
-                    spectrum = G_omega * source_mag[:, np.newaxis, np.newaxis]
+                    spectrum = (
+                        G_omega * source_mag[:, np.newaxis, np.newaxis]
+                    )  # shape (N, 3, 3)
 
                     return spectrum[0] if squeeze_output else spectrum
 
@@ -414,30 +411,27 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                n_omega = len(omega_array)
+                G_omega = elastic_3d_wrapper.greens_mixed_force_vectorized(
+                    x,
+                    omega_array,
+                    rho,
+                    lam,
+                    mu,
+                    0,
+                    1,
+                    0,
+                    0,
+                    0,  # dummy values for nu, J, ... due to API
+                    force_use_openmp=force_use_openmp,
+                    force_no_openmp=force_no_openmp,
+                )  # shape (n_omega, 6, 6)
 
-                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-
-                for i, omega in enumerate(omega_array):
-                    G_tuple = elastic_3d_wrapper.greens_mixed_force(
-                        x,
-                        omega,
-                        rho,
-                        lam,
-                        mu,
-                        0,
-                        1,
-                        0,
-                        0,
-                        0,  # dummy values for nu, J, ... due to API
-                    )
-                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
-
-                    # Get source spectrum
-                    source_mag = source.spectrum(float(omega))
-
-                    # Multiply by source magnitude: G * source_magnitude
-                    spectrum[i] = G * source_mag
+                # Get source spectrum
+                source_mag = source.spectrum_vectorized(omega_array)
+                # Multiply by source magnitude: G * source_magnitude
+                spectrum = (
+                    G_omega * source_mag[:, np.newaxis, np.newaxis]
+                )  # shape (N, 6, 6)
 
                 return spectrum[0] if squeeze_output else spectrum
 
@@ -473,20 +467,27 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                n_omega = len(omega_array)
-                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+                G_omega = cosserat_3d_wrapper.greens_mixed_force_vectorized(
+                    x,
+                    omega_array,
+                    rho,
+                    lam,
+                    mu,
+                    nu,
+                    J,
+                    lam_c,
+                    mu_c,
+                    nu_c,
+                    force_use_openmp=force_use_openmp,
+                    force_no_openmp=force_no_openmp,
+                )  # shape (n_omega, 6, 6)
 
-                for i, omega in enumerate(omega_array):
-                    G_tuple = cosserat_3d_wrapper.greens_mixed_force(
-                        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-                    )
-                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
-
-                    # Get source spectrum
-                    source_mag = source.spectrum(float(omega))
-
-                    # Multiply by source magnitude: G * source_magnitude
-                    spectrum[i] = G * source_mag
+                # Get source spectrum
+                source_mag = source.spectrum_vectorized(omega_array)
+                # Multiply by source magnitude: G * source_magnitude
+                spectrum = (
+                    G_omega * source_mag[:, np.newaxis, np.newaxis]
+                )  # shape (N, 6, 6)
 
                 return spectrum[0] if squeeze_output else spectrum
 

@@ -322,8 +322,8 @@ static PyObject* py_greens_mixed_force_vectorized(PyObject* self, PyObject* args
             PyObject* row_tuple = PyTuple_New(6);
             for (int col = 0; col < 6; ++col) {
                 /* Access G_real and G_imag in Fortran column-major order */
-                double real_val = G_real[i * 36 + row + col * 6];
-                double imag_val = G_imag[i * 36 + row + col * 6];
+                double real_val = G_real[i + row * n_omega + col * n_omega * 6];
+                double imag_val = G_imag[i + row * n_omega + col * n_omega * 6];
                 PyTuple_SET_ITEM(row_tuple, col, PyComplex_FromDoubles(real_val, imag_val));
             }
             PyTuple_SET_ITEM(matrix, row, row_tuple);
@@ -414,13 +414,13 @@ static PyObject* py_greens_displacement_force_vectorized(PyObject* self, PyObjec
     // Convert Nx6x3 Fortran array to nested Python tuple
     PyObject* result = PyTuple_New(n_omega);
     for (Py_ssize_t i = 0; i < n_omega; ++i) {
-        PyObject* matrix = PyTuple_New(3);
+        PyObject* matrix = PyTuple_New(6);
         for (int row = 0; row < 6; ++row) {
             PyObject* row_tuple = PyTuple_New(3);
             for (int col = 0; col < 3; ++col) {
                 /* Access G_real and G_imag in Fortran column-major order */
-                double real_val = G_real[i * 18 + row + col * 6];
-                double imag_val = G_imag[i * 18 + row + col * 6];
+                double real_val = G_real[i + row * n_omega + col * n_omega * 6];
+                double imag_val = G_imag[i + row * n_omega + col * n_omega * 6];
                 PyTuple_SET_ITEM(row_tuple, col, PyComplex_FromDoubles(real_val, imag_val));
             }
             PyTuple_SET_ITEM(matrix, row, row_tuple);
@@ -511,13 +511,13 @@ static PyObject* py_greens_rotation_force_vectorized(PyObject* self, PyObject* a
     // Convert Nx6x3 Fortran array to nested Python tuple
     PyObject* result = PyTuple_New(n_omega);
     for (Py_ssize_t i = 0; i < n_omega; ++i) {
-        PyObject* matrix = PyTuple_New(3);
+        PyObject* matrix = PyTuple_New(6);
         for (int row = 0; row < 6; ++row) {
             PyObject* row_tuple = PyTuple_New(3);
             for (int col = 0; col < 3; ++col) {
                 /* Access G_real and G_imag in Fortran column-major order */
-                double real_val = G_real[i * 18 + row + col * 6];
-                double imag_val = G_imag[i * 18 + row + col * 6];
+                double real_val = G_real[i + row * n_omega + col * n_omega * 6];
+                double imag_val = G_imag[i + row * n_omega + col * n_omega * 6];
                 PyTuple_SET_ITEM(row_tuple, col, PyComplex_FromDoubles(real_val, imag_val));
             }
             PyTuple_SET_ITEM(matrix, row, row_tuple);

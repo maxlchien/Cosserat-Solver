@@ -295,7 +295,6 @@ contains
   real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
 
   integer :: i
-  complex(rk) :: G_loc(6,6)
   logical, intent(in), optional :: force_use_openmp, force_no_openmp
   logical :: use_openmp
 
@@ -315,7 +314,7 @@ contains
   end if
 
   if (use_openmp) then
-!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
+!$OMP PARALLEL DO PRIVATE(i) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
 !$OMP& J, lam_c, mu_c, nu_c) SCHEDULE(DYNAMIC)
     do i = 1, n_omega
       G_array(i, :, :) = greens_mixed_force(x, omega_array(i), rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
@@ -338,7 +337,6 @@ function greens_displacement_force_vectorized(x, omega_array, n_omega, &
   real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
 
   integer :: i
-  complex(rk) :: G_loc(6,3)
   logical, intent(in), optional :: force_use_openmp, force_no_openmp
   logical :: use_openmp
 
@@ -358,7 +356,7 @@ function greens_displacement_force_vectorized(x, omega_array, n_omega, &
   end if
 
   if (use_openmp) then
-!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
+!$OMP PARALLEL DO PRIVATE(i) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
 !$OMP& J, lam_c, mu_c, nu_c) SCHEDULE(DYNAMIC)
     do i = 1, n_omega
       G_array(i, :, :) = greens_displacement_force(x, omega_array(i), rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
@@ -381,7 +379,6 @@ function greens_rotation_force_vectorized(x, omega_array, n_omega, &
   real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
 
   integer :: i
-  complex(rk) :: G_loc(6,3)
   logical, intent(in), optional :: force_use_openmp, force_no_openmp
   logical :: use_openmp
 
@@ -401,7 +398,7 @@ function greens_rotation_force_vectorized(x, omega_array, n_omega, &
   end if
 
   if (use_openmp) then
-!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
+!$OMP PARALLEL DO PRIVATE(i) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu, nu, &
 !$OMP& J, lam_c, mu_c, nu_c) SCHEDULE(DYNAMIC)
     do i = 1, n_omega
       G_array(i, :, :) = greens_rotation_force(x, omega_array(i), rho, lam, mu, nu, J, lam_c, mu_c, nu_c)

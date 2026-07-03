@@ -104,7 +104,6 @@ contains
   real(rk), intent(in) :: rho, lam, mu
 
   integer :: i
-  complex(rk) :: G_loc(3,3)
   logical, intent(in), optional :: force_use_openmp, force_no_openmp
   logical :: use_openmp
 
@@ -124,7 +123,7 @@ contains
   end if
 
   if (use_openmp) then
-!$OMP PARALLEL DO PRIVATE(i, G_loc) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu) SCHEDULE(DYNAMIC)
+!$OMP PARALLEL DO PRIVATE(i) SHARED(x, omega_array, G_array, n_omega, rho, lam, mu) SCHEDULE(DYNAMIC)
     do i = 1, n_omega
       G_array(i, :, :) = greens_displacement_force(x, omega_array(i), rho, lam, mu)
     end do

@@ -123,15 +123,15 @@ static PyObject* py_greens_displacement_force_vectorized(PyObject* self, PyObjec
                                            force_use_openmp, force_no_openmp, G_real, G_imag);
 
     // Convert Nx3x3 Fortran array to nested Python tuple
-    PyObject* result = PyTuple_New(3);
+    PyObject* result = PyTuple_New(n_omega);
     for (Py_ssize_t i = 0; i < n_omega; ++i) {
         PyObject* matrix = PyTuple_New(3);
         for (int row = 0; row < 3; ++row) {
             PyObject* row_tuple = PyTuple_New(3);
             for (int col = 0; col < 3; ++col) {
                 /* Access G_real and G_imag in Fortran column-major order */
-                double real_val = G_real[i * 9 + row + col * 3];
-                double imag_val = G_imag[i * 9 + row + col * 3];
+                double real_val = G_real[i + row * n_omega + col * n_omega * 3];
+                double imag_val = G_imag[i + row * n_omega + col * n_omega * 3];
                 PyTuple_SET_ITEM(row_tuple, col, PyComplex_FromDoubles(real_val, imag_val));
             }
             PyTuple_SET_ITEM(matrix, row, row_tuple);

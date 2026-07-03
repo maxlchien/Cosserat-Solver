@@ -330,7 +330,7 @@ def greens_displacement_force_vectorized(
     force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a displacement force source in a 3D elastic medium.
 
     Automatically detects whether omega is scalar or array and handles appropriately.
     Scalar inputs are converted to length-1 arrays internally for unified processing.
@@ -367,8 +367,8 @@ def greens_displacement_force_vectorized(
     Returns
     -------
     np.ndarray
-        If omega is scalar: shape (3, 3) complex array
-        If omega is array: shape (n_omega, 3, 3) complex array
+        If omega is scalar: shape (6, 3) complex array
+        If omega is array: shape (n_omega, 6, 3) complex array
 
     Raises
     ------
@@ -429,7 +429,7 @@ def greens_rotation_force_from_dict(
     material_params: dict,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
 
     Parameters:
         x: np.ndarray
@@ -479,7 +479,7 @@ def greens_rotation_force(
     nu_c: float,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
 
     Parameters:
         x: np.ndarray
@@ -550,7 +550,7 @@ def greens_rotation_force_vectorized(
     force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
 
     Automatically detects whether omega is scalar or array and handles appropriately.
     Scalar inputs are converted to length-1 arrays internally for unified processing.
