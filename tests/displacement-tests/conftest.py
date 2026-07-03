@@ -4,7 +4,7 @@ import pytest
 
 # read the data folder and get all the subfolders which have complete reference and param data
 
-SIMULATIONS = ["benchmark"]
+SIMULATIONS = ["cosserat_3d_benchmark", "elastic_3d_benchmark"]
 
 
 @pytest.fixture(params=SIMULATIONS, scope="session")
