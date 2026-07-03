@@ -1,13 +1,16 @@
 # --- branch_config generation (unchanged) ---
+file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim2)
+# TODO: these should both be removed once dim2 is reworked
 add_custom_command(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/branch_config.f90
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/dim2/branch_config.f90
   COMMAND ${Python_EXECUTABLE}
-    ${CMAKE_CURRENT_SOURCE_DIR}/generate_consts.py
+
+    ${CMAKE_CURRENT_SOURCE_DIR}/dim2/generate_consts.py
     ${CMAKE_CURRENT_SOURCE_DIR}/../consts.py
-    ${CMAKE_CURRENT_BINARY_DIR}/branch_config.f90
+    ${CMAKE_CURRENT_BINARY_DIR}/dim2/branch_config.f90
   DEPENDS
     ${CMAKE_CURRENT_SOURCE_DIR}/../consts.py
-    ${CMAKE_CURRENT_SOURCE_DIR}/generate_consts.py
+    ${CMAKE_CURRENT_SOURCE_DIR}/dim2/generate_consts.py
   VERBATIM
 )
 
@@ -19,30 +22,83 @@ else()
   message(WARNING "OpenMP not found. Vectorized operations will run serially.")
 endif()
 
-# --- Build dispersion_fortran library ---
-add_library(dispersion_fortran STATIC
+# --- Build compiled library ---
+add_library(kinds STATIC
   ${CMAKE_CURRENT_SOURCE_DIR}/kinds.f90
-  ${CMAKE_CURRENT_BINARY_DIR}/branch_config.f90
-  ${CMAKE_CURRENT_SOURCE_DIR}/dispersion_core.f90
-  ${CMAKE_CURRENT_SOURCE_DIR}/dispersion_core_c.f90
-  ${CMAKE_CURRENT_SOURCE_DIR}/integrator_core.f90
-  ${CMAKE_CURRENT_SOURCE_DIR}/integrator_core_c.f90
 )
 
-target_compile_options(dispersion_fortran PRIVATE
+target_compile_options(kinds PRIVATE
   -fdefault-real-8
   -fdefault-double-8
 )
 
+set_target_properties(kinds PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/kinds
+)
+target_include_directories(kinds INTERFACE ${CMAKE_CURRENT_BINARY_DIR}/kinds)
+
+add_library(dim2_cosserat STATIC
+  ${CMAKE_CURRENT_BINARY_DIR}/dim2/branch_config.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/dispersion_core.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/dispersion_core_c.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/integrator_core.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/integrator_core_c.f90
+)
+target_link_libraries(dim2_cosserat PUBLIC kinds)
+target_compile_options(dim2_cosserat PRIVATE
+  -fdefault-real-8
+  -fdefault-double-8
+)
+set_target_properties(dim2_cosserat PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim2/cosserat
+)
 # Add OpenMP flags if available
 if(OpenMP_Fortran_FOUND)
-  target_compile_options(dispersion_fortran PRIVATE ${OpenMP_Fortran_FLAGS})
-  target_link_libraries(dispersion_fortran PRIVATE OpenMP::OpenMP_Fortran)
+  target_compile_options(dim2_cosserat PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim2_cosserat PRIVATE OpenMP::OpenMP_Fortran)
 endif()
 
-set_target_properties(dispersion_fortran PROPERTIES
-  POSITION_INDEPENDENT_CODE ON
+add_library(dim3_cosserat STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/dispersion_core.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/dispersion_core_c.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/cosserat_core.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/cosserat_core_c.f90
 )
+target_link_libraries(dim3_cosserat PUBLIC kinds)
+target_compile_options(dim3_cosserat PRIVATE
+  -fdefault-real-8
+  -fdefault-double-8
+)
+set_target_properties(dim3_cosserat PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim3/cosserat
+)
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dim3_cosserat PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim3_cosserat PRIVATE OpenMP::OpenMP_Fortran)
+endif()
+
+add_library(dim3_elastic STATIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/elastic_core.f90
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/elastic_core_c.f90
+)
+target_link_libraries(dim3_elastic PUBLIC kinds)
+target_compile_options(dim3_elastic PRIVATE
+  -fdefault-real-8
+  -fdefault-double-8
+)
+set_target_properties(dim3_elastic PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/dim3/elastic
+)
+# Add OpenMP flags if available
+if(OpenMP_Fortran_FOUND)
+  target_compile_options(dim3_elastic PRIVATE ${OpenMP_Fortran_FLAGS})
+  target_link_libraries(dim3_elastic PRIVATE OpenMP::OpenMP_Fortran)
+endif()
 
 # --- AMOS/SLATEC integration in subfolder fortran/amos ---
 file(STRINGS "${CMAKE_CURRENT_SOURCE_DIR}/amos/amos_deps.txt" AMOS_SOURCES)
@@ -59,24 +115,54 @@ set_target_properties(amos PROPERTIES
 )
 
 # --- Build Python extension that exposes dispersion_core ---
-Python_add_library(dispersion_core MODULE WITH_SOABI
-  ${CMAKE_CURRENT_SOURCE_DIR}/dispersion_wrapper.c
+Python_add_library(dispersion_core_2d MODULE WITH_SOABI
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/dispersion_wrapper.c
 )
 
 # --- Build Python extension that exposes integrator_core ---
-Python_add_library(integrator_core MODULE WITH_SOABI
-  ${CMAKE_CURRENT_SOURCE_DIR}/integrator_wrapper.c
+Python_add_library(integrator_core_2d MODULE WITH_SOABI
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim2/integrator_wrapper.c
 )
 
-target_link_libraries(dispersion_core PRIVATE
-  dispersion_fortran
+# --- Build Python extension that exposes dispersion_core_3d ---
+Python_add_library(dispersion_core_3d MODULE WITH_SOABI
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/dispersion_wrapper.c
 )
 
-target_link_libraries(integrator_core PRIVATE
-  dispersion_fortran
+# --- Build Python extension that exposes cosserat_core_3d ---
+Python_add_library(cosserat_core_3d MODULE WITH_SOABI
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/cosserat_wrapper.c
+)
+
+# --- Build Python extension that exposes elastic_core_3d ---
+Python_add_library(elastic_core_3d MODULE WITH_SOABI
+  ${CMAKE_CURRENT_SOURCE_DIR}/dim3/elastic_wrapper.c
+)
+
+target_link_libraries(dispersion_core_2d PRIVATE
+  dim2_cosserat
+)
+
+target_link_libraries(integrator_core_2d PRIVATE
+  dim2_cosserat
   amos
 )
 
+target_link_libraries(dispersion_core_3d PRIVATE
+  dim3_cosserat
+)
 
-install(TARGETS dispersion_core DESTINATION cosserat_solver)
-install(TARGETS integrator_core DESTINATION cosserat_solver)
+target_link_libraries(cosserat_core_3d PRIVATE
+  dim3_cosserat
+)
+
+target_link_libraries(elastic_core_3d PRIVATE
+  dim3_elastic
+)
+
+
+install(TARGETS dispersion_core_2d DESTINATION cosserat_solver)
+install(TARGETS integrator_core_2d DESTINATION cosserat_solver)
+install(TARGETS dispersion_core_3d DESTINATION cosserat_solver)
+install(TARGETS cosserat_core_3d DESTINATION cosserat_solver)
+install(TARGETS elastic_core_3d DESTINATION cosserat_solver)

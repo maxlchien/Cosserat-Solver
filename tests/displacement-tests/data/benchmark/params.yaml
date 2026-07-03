@@ -1,0 +1,32 @@
+material_type: cosserat
+dimension: 3
+material_params:
+  rho: 2300
+  lam: 7.682e9
+  mu: 5.175e9
+  nu: 1e2
+  J: 2300
+  lam_c: 6e9
+  mu_c: 2e9
+  nu_c: 0
+
+source_params:
+  type: "Ricker"
+  f0: 0.1
+  factor: 1
+  tshift: 0.0
+  f: [1.0e8, 2.0e8, 4.0e7]
+  fc: [2.0e11, 5.0e11, 1.0e12]
+
+ft_params:
+  dt: 0.01
+  N: 5000
+  refinement_factor: 1
+  extension_factor: 128
+
+seismogram_locations:
+  - [0, 10000, 0]
+  - [10000, 0, 0]
+  - [0, 0, 10000]
+  - [10000, 10000, 10000]
+  - [-10000, -10000, -10000]

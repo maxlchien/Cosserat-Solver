@@ -16,7 +16,18 @@ def tests(session: nox.Session) -> None:
     session.install("--no-build-isolation", "--force-reinstall", "-e", ".")
 
     # session.install(".[test]")
-    session.run("pytest", *session.posargs)
+    session.run("pytest", "tests", *session.posargs)
+
+
+@nox_uv.session(uv_groups=["test"])
+def displacement_tests(session: nox.Session) -> None:
+    """
+    Run the displacement tests.
+    """
+    session.install("--no-build-isolation", "--force-reinstall", "-e", ".")
+
+    # session.install(".[test]")
+    session.run("pytest", "tests", "--displacement-tests", *session.posargs)
 
 
 @nox_uv.session(uv_groups=["dev"])

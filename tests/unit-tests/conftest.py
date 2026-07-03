@@ -1,0 +1,183 @@
+from __future__ import annotations
+
+import itertools
+
+import numpy as np
+import pytest
+from mpmath import mp
+
+from cosserat_solver import consts
+
+mp.dps = consts.TEST_PRECISION
+
+
+# --- Predefined material parameter sets ---
+MATERIAL_PARAMETER_SETS_MP = [
+    {
+        "rho": mp.mpf("1e3"),
+        "lam": mp.mpf("1e5"),
+        "mu": mp.mpf("1e5"),
+        "nu": mp.mpf("1e4"),
+        "J": mp.mpf("1"),
+        "lam_c": mp.mpf("1e5"),
+        "mu_c": mp.mpf("1e5"),
+        "nu_c": mp.mpf("1e4"),
+    },
+    {
+        "rho": mp.mpf("1e4"),
+        "lam": mp.mpf("1e6"),
+        "mu": mp.mpf("5e6"),
+        "nu": mp.mpf("1e5"),
+        "J": mp.mpf("1e2"),
+        "lam_c": mp.mpf("2e6"),
+        "mu_c": mp.mpf("3e6"),
+        "nu_c": mp.mpf("5e5"),
+    },
+    {
+        "rho": mp.mpf("1e5"),
+        "lam": mp.mpf("1e7"),
+        "mu": mp.mpf("1e7"),
+        "nu": mp.mpf("1e6"),
+        "J": mp.mpf("5e4"),
+        "lam_c": mp.mpf("1e7"),
+        "mu_c": mp.mpf("1e7"),
+        "nu_c": mp.mpf("1e7"),
+    },
+    {
+        "rho": mp.mpf("1e6"),
+        "lam": mp.mpf("1e8"),
+        "mu": mp.mpf("5e7"),
+        "nu": mp.mpf("1e7"),
+        "J": mp.mpf("1e3"),
+        "lam_c": mp.mpf("1e8"),
+        "mu_c": mp.mpf("1e8"),
+        "nu_c": mp.mpf("1e7"),
+    },
+    {
+        "rho": mp.mpf("1e8"),
+        "lam": mp.mpf("5e5"),
+        "mu": mp.mpf("2e8"),
+        "nu": mp.mpf("3e6"),
+        "J": mp.mpf("1e4"),
+        "lam_c": mp.mpf("4e7"),
+        "mu_c": mp.mpf("6e7"),
+        "nu_c": mp.mpf("8e6"),
+    },
+]
+MATERIAL_PARAMETER_SETS = [
+    {k: np.float64(v) for k, v in mp_set.items()}
+    for mp_set in MATERIAL_PARAMETER_SETS_MP
+]
+
+# --- Define k and omega ranges ---
+K_VALUES = [
+    mp.mpf("1e-1"),
+    mp.mpf("1.0"),
+    mp.mpf("10.0"),
+    mp.mpf("100.0"),
+    mp.mpf("1000.0"),
+]
+
+
+@pytest.fixture(params=K_VALUES, scope="session")
+def k_value(request):
+    return request.param
+
+
+OMEGA_VALUES_MP = [mp.mpf("1e1"), mp.mpf("1e2"), mp.mpf("1e3"), mp.mpf("1e4")]
+OMEGA_VALUES = [np.float64(omega) for omega in OMEGA_VALUES_MP]
+
+
+@pytest.fixture(params=OMEGA_VALUES, scope="session")
+def omega_value(request):
+    return request.param
+
+
+@pytest.fixture(params=OMEGA_VALUES_MP, scope="session")
+def omega_value_mp(request):
+    return request.param
+
+
+# --- Fixture for material parameters ---
+@pytest.fixture(params=MATERIAL_PARAMETER_SETS, scope="session")
+def material_parameters(request):
+    """Fixture providing predefined sets of material parameters."""
+    return request.param
+
+
+@pytest.fixture(params=MATERIAL_PARAMETER_SETS_MP, scope="session")
+def material_parameters_mp(request):
+    """Fixture providing predefined sets of material parameters with mpmath precision."""
+    return request.param
+
+
+# --- Fixture for (k, omega) combinations ---
+@pytest.fixture(
+    params=[
+        {"k": k, "omega": omega}
+        for k, omega in itertools.product(K_VALUES, OMEGA_VALUES)
+    ],
+    scope="session",
+)
+def wave_parameters(request):
+    """Fixture providing combinations of wavenumber and frequency."""
+    return request.param
+
+
+@pytest.fixture(params=[consts.PLUS_BRANCH, -consts.PLUS_BRANCH], scope="session")
+def branch(request):
+    """Fixture providing the branch of the dispersion relation."""
+    return request.param
+
+
+# --- Fixture for norm_x values (for integration tests) ---
+NORM_X_VALUES = [
+    mp.mpf("1e-1"),
+    mp.mpf("1e0"),
+    mp.mpf("1e2"),
+    mp.mpf("1e4"),
+    mp.mpf("1e6"),
+    mp.mpf("1e8"),
+]
+
+
+@pytest.fixture(params=NORM_X_VALUES, scope="session")
+def norm_x_value(request):
+    """Fixture providing values for x-coordinate norm in integration tests."""
+    return request.param
+
+
+# --- Fixture for 2d and 3d locations ---
+LOCATIONS_2D = [
+    np.array([100.0, 200.0]),
+    np.array([500.0, 500.0]),
+    np.array([1000.0, 1500.0]),
+    np.array([0.0, 100.0]),
+    np.array([200.0, 0.0]),
+    # generally it is not possible to evaluate at the origin
+]
+
+LOCATIONS_3D = [
+    np.array([100.0, 200.0, 300.0]),
+    np.array([500.0, 500.0, 500.0]),
+    np.array([1000.0, 1500.0, 2000.0]),
+    np.array([0.0, 100.0, 200.0]),
+    np.array([200.0, 0.0, 300.0]),
+    np.array([300.0, 200.0, 0.0]),
+    np.array([0.0, 0.0, 100.0]),
+    np.array([0.0, 100.0, 0.0]),
+    np.array([100.0, 0.0, 0.0]),
+    # generally it is not possible to evaluate at the origin
+]
+
+
+@pytest.fixture(params=LOCATIONS_2D, scope="session")
+def location_2d(request):
+    """Fixture providing 2D locations for testing."""
+    return request.param
+
+
+@pytest.fixture(params=LOCATIONS_3D, scope="session")
+def location_3d(request):
+    """Fixture providing 3D locations for testing."""
+    return request.param

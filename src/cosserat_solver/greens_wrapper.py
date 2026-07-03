@@ -17,18 +17,57 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 try:
-    from cosserat_solver._integrator_core_wrapper import HAS_FORTRAN, IntegratorFortran
+    import cosserat_solver._cosserat_core_3d_wrapper as cosserat_3d_wrapper
+    import cosserat_solver._elastic_core_3d_wrapper as elastic_3d_wrapper
+    from cosserat_solver._integrator_core_2d_wrapper import (
+        HAS_FORTRAN,
+        IntegratorFortran,
+    )
 
     FORTRAN_AVAILABLE = HAS_FORTRAN
 except ImportError:
     FORTRAN_AVAILABLE = False
     if TYPE_CHECKING:
-        from cosserat_solver._integrator_core_wrapper import IntegratorFortran
+        from cosserat_solver._integrator_core_2d_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
+import cosserat_solver.cosserat_3d as cosserat_3d
+import cosserat_solver.elastic_3d as elastic_3d
 from cosserat_solver import consts
 from cosserat_solver.integrator import Integrator
 from cosserat_solver.source import SourceSpectrum
+
+# material type tags
+MATERIAL_TYPE_ELASTIC = 0
+MATERIAL_TYPE_COSSERAT = 1
+
+
+def get_material_tag(material_type: str) -> int:
+    if material_type.lower() == "elastic":
+        return MATERIAL_TYPE_ELASTIC
+    if material_type.lower() == "cosserat":
+        return MATERIAL_TYPE_COSSERAT
+
+    msg = f"Unknown material type: {material_type}. Supported types are 'elastic' and 'cosserat'."
+    raise ValueError(msg)
+
+
+# dimension tags
+DIMENSION_2D = 2
+DIMENSION_3D = 3
+
+# backend tags
+BACKEND_FORTRAN = 0
+BACKEND_PYTHON = 1
+
+SUPPORTED_COMBOS = {
+    (DIMENSION_2D, BACKEND_FORTRAN, MATERIAL_TYPE_COSSERAT),
+    (DIMENSION_2D, BACKEND_PYTHON, MATERIAL_TYPE_COSSERAT),
+    (DIMENSION_3D, BACKEND_FORTRAN, MATERIAL_TYPE_COSSERAT),
+    (DIMENSION_3D, BACKEND_PYTHON, MATERIAL_TYPE_COSSERAT),
+    (DIMENSION_3D, BACKEND_FORTRAN, MATERIAL_TYPE_ELASTIC),
+    (DIMENSION_3D, BACKEND_PYTHON, MATERIAL_TYPE_ELASTIC),
+}
 
 
 def _validate_material_params(material_params: dict) -> None:
@@ -40,10 +79,20 @@ def _validate_material_params(material_params: dict) -> None:
         raise ValueError(err)
 
 
+def _validate_dimension_backend_material_combo(
+    dim: int, backend: int, material_type: int
+) -> None:
+    if (dim, backend, material_type) not in SUPPORTED_COMBOS:
+        err = f"Combination of dimension {dim}, backend {backend}, and material type {material_type} is not supported."
+        raise ValueError(err)
+
+
 def evaluate_greens_fortran(
     x: np.ndarray,
+    dim: int,
     omega_array: np.ndarray,
     material_params: dict,
+    material_type: int = MATERIAL_TYPE_COSSERAT,
     force_use_openmp: bool = False,
     force_no_openmp: bool = False,
 ) -> np.ndarray:
@@ -54,6 +103,8 @@ def evaluate_greens_fortran(
     ----------
     x : np.ndarray
         2D spatial location [x1, x2] where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     omega_array : np.ndarray
         Array of angular frequencies (real values)
     material_params : dict
@@ -79,35 +130,102 @@ def evaluate_greens_fortran(
         raise RuntimeError(err)
 
     _validate_material_params(material_params)
+    _validate_dimension_backend_material_combo(dim, BACKEND_FORTRAN, material_type)
+    x = np.asarray(x, dtype=float)
+    if dim == 2 and material_type == MATERIAL_TYPE_COSSERAT:
+        # Create Fortran integrator
+        integrator = IntegratorFortran(
+            rho=material_params["rho"],
+            lam=material_params["lam"],
+            mu=material_params["mu"],
+            nu=material_params["nu"],
+            J=material_params["J"],
+            lam_c=material_params["lam_c"],
+            mu_c=material_params["mu_c"],
+            nu_c=material_params["nu_c"],
+        )
 
-    # Create Fortran integrator
-    integrator = IntegratorFortran(
-        rho=material_params["rho"],
-        lam=material_params["lam"],
-        mu=material_params["mu"],
-        nu=material_params["nu"],
-        J=material_params["J"],
-        lam_c=material_params["lam_c"],
-        mu_c=material_params["mu_c"],
-        nu_c=material_params["nu_c"],
-    )
+        # Ensure x is a list/tuple of length 2
+        if x.shape != (2,):
+            err = "Spatial location x must have shape (2,) for dimension 2."
+            raise ValueError(err)
 
-    # Ensure x is a list/tuple of length 2
-    x_2d = [float(x[0]), float(x[1])]
+        # Evaluate for each omega
+        n_omega = len(omega_array)
 
-    # Use vectorized backend - automatically handles array
-    return integrator.greens_x_omega_vectorized(
-        x_2d,
-        omega_array,
-        force_use_openmp=force_use_openmp,
-        force_no_openmp=force_no_openmp,
-    )
+        # Use vectorized backend - automatically handles array
+        return integrator.greens_x_omega_vectorized(
+            x.tolist(),  # Convert to list for Fortran compatibility
+            omega_array,
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )
+    if dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
+        # For 3D elastic, use the elastic_3d_wrapper
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+
+        n_omega = len(omega_array)
+        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+
+        # Ensure x is a list/tuple of length 3
+        if x.shape != (3,):
+            err = "Spatial location x must have shape (3,) for dimension 3."
+            raise ValueError(err)
+
+        for i, omega in enumerate(omega_array):
+            G_tuple = elastic_3d_wrapper.greens_mixed_force(
+                x,
+                omega,
+                rho,
+                lam,
+                mu,
+                0,
+                1,
+                0,
+                0,
+                0,  # dummy values for nu, J, ... due to API
+            )
+            greens[i] = np.array(G_tuple, dtype=np.complex128)
+
+        return greens
+    if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
+        # For 3D Cosserat, use the cosserat_3d_wrapper
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+        nu = material_params["nu"]
+        J = material_params["J"]
+        lam_c = material_params["lam_c"]
+        mu_c = material_params["mu_c"]
+        nu_c = material_params["nu_c"]
+
+        n_omega = len(omega_array)
+        greens = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+
+        # Ensure x is a list/tuple of length 3
+        if x.shape != (3,):
+            err = "Spatial location x must have shape (3,) for dimension 3."
+            raise ValueError(err)
+
+        for i, omega in enumerate(omega_array):
+            G_tuple = cosserat_3d_wrapper.greens_mixed_force(
+                x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+            )
+            greens[i] = np.array(G_tuple, dtype=np.complex128)
+
+        return greens
+    err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
+    raise ValueError(err)
 
 
 def evaluate_greens_python(
     x: np.ndarray,
+    dim: int,
     omega: float,
     material_params: dict,
+    material_type: int = MATERIAL_TYPE_COSSERAT,
     digits_precision: int = consts.COMPUTE_PRECISION,
 ) -> np.ndarray:
     """
@@ -116,7 +234,9 @@ def evaluate_greens_python(
     Parameters
     ----------
     x : np.ndarray
-        2D spatial location where Green's function is evaluated
+        Spatial location where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     omega : float
         Angular frequency (scalar value)
     material_params : dict
@@ -127,32 +247,39 @@ def evaluate_greens_python(
     Returns
     -------
     greens : np.ndarray
-        Complex array of shape (3, 3)
+        Complex array of shape (3, 3) for 2D or (6, 6) for 3D
         Green's function at omega
     """
     _validate_material_params(material_params)
+    _validate_dimension_backend_material_combo(dim, BACKEND_PYTHON, material_type)
+    x = np.asarray(x, dtype=float)
 
-    # Create Python integrator
-    integrator = Integrator(
-        rho=material_params["rho"],
-        lam=material_params["lam"],
-        mu=material_params["mu"],
-        nu=material_params["nu"],
-        J=material_params["J"],
-        lam_c=material_params["lam_c"],
-        mu_c=material_params["mu_c"],
-        nu_c=material_params["nu_c"],
-        digits_precision=digits_precision,
-    )
+    if dim == 2:
+        # Create Python integrator
+        integrator = Integrator(
+            rho=material_params["rho"],
+            lam=material_params["lam"],
+            mu=material_params["mu"],
+            nu=material_params["nu"],
+            J=material_params["J"],
+            lam_c=material_params["lam_c"],
+            mu_c=material_params["mu_c"],
+            nu_c=material_params["nu_c"],
+            digits_precision=digits_precision,
+        )
 
-    return integrator.greens_x_omega(x, omega)
+        return integrator.greens_x_omega(x, omega)
+    err = f"Invalid dimension {dim}. This function is only for numerics comparisons, and needs to be rewritten for 3D."
+    raise NotImplementedError(err)
 
 
 def get_greens_callback(
     x: np.ndarray,
+    dim: int,
     material_params: dict,
     source: SourceSpectrum,
-    use_fortran: bool = True,
+    use_fortran: bool,
+    material_type: int,
     digits_precision: int = consts.COMPUTE_PRECISION,
     force_use_openmp: bool = False,
     force_no_openmp: bool = False,
@@ -167,12 +294,16 @@ def get_greens_callback(
     ----------
     x : np.ndarray
         2D spatial location where Green's function is evaluated
+    dim: int
+        The dimension of the problem (either 2 or 3)
     material_params : dict
         Material parameters (rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     source : SourceSpectrum
         Source object with spectrum(omega) and direction() methods
-    use_fortran : bool, default=True
+    use_fortran : bool
         Whether to use Fortran backend if available. Falls back to Python if not.
+    material_type : int
+        Type of material (e.g., MATERIAL_TYPE_COSSERAT)
     digits_precision : int
         Number of digits for mpmath precision (Python backend only)
     force_use_openmp : bool, default=False
@@ -193,26 +324,79 @@ def get_greens_callback(
     The Python backend is much slower.
     """
     _validate_material_params(material_params)
-
+    _validate_dimension_backend_material_combo(
+        dim, BACKEND_FORTRAN if use_fortran else BACKEND_PYTHON, material_type
+    )
+    x = np.asarray(x, dtype=float)
     # Try to use Fortran backend
     if use_fortran and FORTRAN_AVAILABLE:
-        # Create integrator once for reuse
-        try:
-            integrator_fortran = IntegratorFortran(
-                rho=material_params["rho"],
-                lam=material_params["lam"],
-                mu=material_params["mu"],
-                nu=material_params["nu"],
-                J=material_params["J"],
-                lam_c=material_params["lam_c"],
-                mu_c=material_params["mu_c"],
-                nu_c=material_params["nu_c"],
-            )
-            x_2d = [float(x[0]), float(x[1])]
+        if dim == 2 and material_type == MATERIAL_TYPE_COSSERAT:
+            # Create integrator once for reuse
+            try:
+                integrator_fortran = IntegratorFortran(
+                    rho=material_params["rho"],
+                    lam=material_params["lam"],
+                    mu=material_params["mu"],
+                    nu=material_params["nu"],
+                    J=material_params["J"],
+                    lam_c=material_params["lam_c"],
+                    mu_c=material_params["mu_c"],
+                    nu_c=material_params["nu_c"],
+                )
+                x_2d = [float(x[0]), float(x[1])]
+
+                def fortran_callback(omega_array: np.ndarray) -> np.ndarray:
+                    """
+                    Vectorized evaluation using Fortran backend.
+
+                    Parameters
+                    ----------
+                    omega_array : np.ndarray
+                        Array of angular frequencies
+
+                    Returns
+                    -------
+                    spectrum : np.ndarray
+                        Shape (N, 3, 3) array of Green's function spectrum times source magnitude
+                    """
+                    if np.isscalar(omega_array):
+                        omega_array = np.array([omega_array])
+                        squeeze_output = True
+                    else:
+                        squeeze_output = False
+
+                    n_omega = len(omega_array)
+                    # Use vectorized backend with OpenMP control flags
+                    G_omega = integrator_fortran.greens_x_omega_vectorized(
+                        x_2d,
+                        omega_array,
+                        force_use_openmp=force_use_openmp,
+                        force_no_openmp=force_no_openmp,
+                    )
+
+                    # Multiply by source spectrum for each frequency
+                    spectrum = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+                    source_mag = source.spectrum_vectorized(omega_array)
+                    spectrum = G_omega * source_mag[:, np.newaxis, np.newaxis]
+
+                    return spectrum[0] if squeeze_output else spectrum
+
+                return fortran_callback
+
+            except Exception as e:
+                warnings.warn(
+                    f"Failed to initialize Fortran backend: {e}. Falling back to Python.",
+                    stacklevel=2,
+                )
+        elif dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
+            # For 3D elastic, use the elastic_3d_wrapper
+            rho = material_params["rho"]
+            lam = material_params["lam"]
+            mu = material_params["mu"]
 
             def fortran_callback(omega_array: np.ndarray) -> np.ndarray:
                 """
-                Vectorized evaluation using Fortran backend.
+                Vectorized evaluation using Fortran backend for 3D elastic.
 
                 Parameters
                 ----------
@@ -222,7 +406,7 @@ def get_greens_callback(
                 Returns
                 -------
                 spectrum : np.ndarray
-                    Shape (N, 3, 3) array of Green's function spectrum times source magnitude
+                    Shape (N, 6, 6) array of Green's function spectrum times source spectrum
                 """
                 if np.isscalar(omega_array):
                     omega_array = np.array([omega_array])
@@ -232,70 +416,225 @@ def get_greens_callback(
 
                 n_omega = len(omega_array)
 
-                # Use vectorized backend with OpenMP control flags
-                G_omega = integrator_fortran.greens_x_omega_vectorized(
-                    x_2d,
-                    omega_array,
-                    force_use_openmp=force_use_openmp,
-                    force_no_openmp=force_no_openmp,
-                )
+                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
 
-                # Multiply by source spectrum for each frequency
-                spectrum = np.zeros((n_omega, 3, 3), dtype=np.complex128)
-                source_mag = source.spectrum_vectorized(omega_array)
-                spectrum = G_omega * source_mag[:, np.newaxis, np.newaxis]
+                for i, omega in enumerate(omega_array):
+                    G_tuple = elastic_3d_wrapper.greens_mixed_force(
+                        x,
+                        omega,
+                        rho,
+                        lam,
+                        mu,
+                        0,
+                        1,
+                        0,
+                        0,
+                        0,  # dummy values for nu, J, ... due to API
+                    )
+                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
+
+                    # Get source spectrum
+                    source_mag = source.spectrum(float(omega))
+
+                    # Multiply by source magnitude: G * source_magnitude
+                    spectrum[i] = G * source_mag
+
+                return spectrum[0] if squeeze_output else spectrum
+
+            return fortran_callback
+        elif dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
+            # For 3D Cosserat, use the cosserat_3d_wrapper
+            rho = material_params["rho"]
+            lam = material_params["lam"]
+            mu = material_params["mu"]
+            nu = material_params["nu"]
+            J = material_params["J"]
+            lam_c = material_params["lam_c"]
+            mu_c = material_params["mu_c"]
+            nu_c = material_params["nu_c"]
+
+            def fortran_callback(omega_array: np.ndarray) -> np.ndarray:
+                """
+                Vectorized evaluation using Fortran backend for 3D Cosserat.
+
+                Parameters
+                ----------
+                omega_array : np.ndarray
+                    Array of angular frequencies
+
+                Returns
+                -------
+                spectrum : np.ndarray
+                    Shape (N, 6, 6) array of Green's function spectrum times source spectrum
+                """
+                if np.isscalar(omega_array):
+                    omega_array = np.array([omega_array])
+                    squeeze_output = True
+                else:
+                    squeeze_output = False
+
+                n_omega = len(omega_array)
+                spectrum = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+
+                for i, omega in enumerate(omega_array):
+                    G_tuple = cosserat_3d_wrapper.greens_mixed_force(
+                        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+                    )
+                    G = np.array(G_tuple, dtype=np.complex128)  # shape (6, 6)
+
+                    # Get source spectrum
+                    source_mag = source.spectrum(float(omega))
+
+                    # Multiply by source magnitude: G * source_magnitude
+                    spectrum[i] = G * source_mag
 
                 return spectrum[0] if squeeze_output else spectrum
 
             return fortran_callback
 
-        except Exception as e:
-            warnings.warn(
-                f"Failed to initialize Fortran backend: {e}. Falling back to Python.",
-                stacklevel=2,
-            )
-
-    # Fall back to Python backend
-    integrator_python = Integrator(
-        rho=material_params["rho"],
-        lam=material_params["lam"],
-        mu=material_params["mu"],
-        nu=material_params["nu"],
-        J=material_params["J"],
-        lam_c=material_params["lam_c"],
-        mu_c=material_params["mu_c"],
-        nu_c=material_params["nu_c"],
-        digits_precision=digits_precision,
-    )
-
-    def python_callback(omega: float) -> np.ndarray:
-        """
-        Scalar evaluation using Python/mpmath backend.
-
-        Parameters
-        ----------
-        omega : float
-            Angular frequency (must be scalar)
-
-        Returns
-        -------
-        spectrum : np.ndarray
-            Shape (3, 3) array of Green's function spectrum times source magnitude
-        """
-        if isinstance(omega, np.ndarray):
-            err = (
-                "Python backend only supports scalar omega. "
-                "Use Fortran backend for vectorized evaluation."
-            )
+        else:
+            err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
             raise ValueError(err)
 
-        # Evaluate Green's function
-        G_omega = integrator_python.greens_x_omega(x, omega)
+    # Fall back to Python backend (need to revalidate if Fortran was requested but failed)
+    _validate_dimension_backend_material_combo(dim, BACKEND_PYTHON, material_type)
 
-        # Get source spectrum
-        source_mag = source.spectrum(omega)
+    if dim == 2 and material_type == MATERIAL_TYPE_COSSERAT:
+        integrator_python = Integrator(
+            rho=material_params["rho"],
+            lam=material_params["lam"],
+            mu=material_params["mu"],
+            nu=material_params["nu"],
+            J=material_params["J"],
+            lam_c=material_params["lam_c"],
+            mu_c=material_params["mu_c"],
+            nu_c=material_params["nu_c"],
+            digits_precision=digits_precision,
+        )
 
-        # Multiply by source magnitude: G * source_magnitude
-        return G_omega * source_mag
+        def python_callback_2d(omega: float) -> np.ndarray:
+            """
+            Scalar evaluation using Python/mpmath backend in 2D.
 
-    return python_callback
+            Parameters
+            ----------
+            omega : float
+                Angular frequency (must be scalar)
+
+            Returns
+            -------
+            spectrum : np.ndarray
+                Shape (3, 3) array of Green's function spectrum times source magnitude
+            """
+            if isinstance(omega, np.ndarray):
+                err = (
+                    "Python backend only supports scalar omega. "
+                    "Use Fortran backend for vectorized evaluation."
+                )
+                raise ValueError(err)
+
+            # Evaluate Green's function
+            G_omega = integrator_python.greens_x_omega(x, omega)
+
+            # Get source spectrum
+            source_mag = source.spectrum(omega)
+
+            # Multiply by source magnitude: G * source_magnitude
+            return G_omega * source_mag
+
+        return python_callback_2d
+
+    if dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
+        # unpack material parameters
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+
+        def python_callback_3d_elastic(omega: float) -> np.ndarray:
+            """
+            Scalar evaluation using Python/mpmath backend for 3D elastic.
+
+            Parameters
+            ----------
+            omega : float
+                Angular frequency (must be scalar)
+
+            Returns
+            -------
+            spectrum : np.ndarray
+                Shape (6, 6) array of Green's function spectrum times source spectrum
+            """
+            if isinstance(omega, np.ndarray):
+                err = (
+                    "Python backend only supports scalar omega. "
+                    "Use Fortran backend for vectorized evaluation."
+                )
+                raise ValueError(err)
+
+            # Evaluate Green's function
+            G_omega = elastic_3d.greens_mixed_force(
+                x, omega, rho, lam, mu, 0, 1, 0, 0, 0
+            )  # dummy values
+
+            # Get source spectrum
+            source_mag = source.spectrum(omega)
+
+            # Multiply by source magnitude: G * source_magnitude
+            return G_omega * source_mag
+
+        return python_callback_3d_elastic
+
+    if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
+        # unpack material parameters
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+        nu = material_params["nu"]
+        J = material_params["J"]
+        lam_c = material_params["lam_c"]
+        mu_c = material_params["mu_c"]
+        nu_c = material_params["nu_c"]
+        material_type = material_params.get("material_type", "cosserat")
+
+        def python_callback_3d(omega: float) -> np.ndarray:
+            """
+            Scalar evaluation using Python/mpmath backend for 3D.
+
+            Parameters
+            ----------
+            omega : float
+                Angular frequency (must be scalar)
+
+            Returns
+            -------
+            spectrum : np.ndarray
+                Shape (6, 6) array of Green's function spectrum times source spectrum
+            """
+            # TODO: check if the python impl for 3d works with vectors
+            if isinstance(omega, np.ndarray):
+                err = (
+                    "Python backend only supports scalar omega. "
+                    "Use Fortran backend for vectorized evaluation."
+                )
+                raise ValueError(err)
+
+            # Evaluate Green's function
+            if material_type == "elastic":
+                G_omega = elastic_3d.greens_mixed_force(
+                    x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+                )
+            else:
+                G_omega = cosserat_3d.greens_mixed_force(
+                    x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+                )
+
+            # Get source spectrum
+            source_mag = source.spectrum(omega)
+
+            # Multiply by source magnitude: G * source_magnitude
+            return G_omega * source_mag
+
+        return python_callback_3d
+
+    err = f"Combination of dimension {dim} and material type {material_type} is not supported for Python backend."
+    raise ValueError(err)
