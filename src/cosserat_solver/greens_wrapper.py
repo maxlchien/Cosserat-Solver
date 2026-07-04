@@ -17,9 +17,9 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 try:
-    import cosserat_solver.dim3._cosserat_core_3d_wrapper as cosserat_3d_wrapper
-    import cosserat_solver.dim3._elastic_core_3d_wrapper as elastic_3d_wrapper
-    from cosserat_solver.dim2._integrator_core_2d_wrapper import (
+    import cosserat_solver.dim3._cosserat_core_wrapper as cosserat_3d_wrapper
+    import cosserat_solver.dim3._elastic_core_wrapper as elastic_3d_wrapper
+    from cosserat_solver.dim2._integrator_core_wrapper import (
         HAS_FORTRAN,
         IntegratorFortran,
     )
@@ -28,7 +28,7 @@ try:
 except ImportError:
     FORTRAN_AVAILABLE = False
     if TYPE_CHECKING:
-        from cosserat_solver.dim2._integrator_core_2d_wrapper import IntegratorFortran
+        from cosserat_solver.dim2._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
 import cosserat_solver.dim3.cosserat_3d as cosserat_3d

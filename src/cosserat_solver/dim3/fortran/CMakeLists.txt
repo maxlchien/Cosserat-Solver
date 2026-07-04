@@ -65,6 +65,17 @@ target_link_libraries(elastic_core_3d PRIVATE
   dim3_elastic
 )
 
+# drop postfix in the python package name
+set_target_properties(dispersion_core_3d PROPERTIES
+  OUTPUT_NAME "dispersion_core"
+)
+set_target_properties(cosserat_core_3d PROPERTIES
+  OUTPUT_NAME "cosserat_core"
+)
+set_target_properties(elastic_core_3d PROPERTIES
+  OUTPUT_NAME "elastic_core"
+)
+
 install(TARGETS dispersion_core_3d DESTINATION cosserat_solver/dim3)
 install(TARGETS cosserat_core_3d DESTINATION cosserat_solver/dim3)
 install(TARGETS elastic_core_3d DESTINATION cosserat_solver/dim3)

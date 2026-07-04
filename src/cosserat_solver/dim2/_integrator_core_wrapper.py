@@ -11,7 +11,7 @@ import numpy as np
 from scipy import LowLevelCallable
 
 try:
-    from cosserat_solver.dim2 import integrator_core_2d
+    from cosserat_solver.dim2 import integrator_core
 
     HAS_FORTRAN = True
 except ImportError:
@@ -85,7 +85,7 @@ class IntegratorFortran:
         """
         Evaluate dispersion denominator D(r, omega) on a given branch.
         """
-        re, im = integrator_core_2d.denom(
+        re, im = integrator_core.denom(
             r.real,
             r.imag,
             omega.real,
@@ -104,7 +104,7 @@ class IntegratorFortran:
         """
         Evaluate ∂D/∂r on a given branch.
         """
-        re, im = integrator_core_2d.denom_prime(
+        re, im = integrator_core.denom_prime(
             r.real,
             r.imag,
             omega.real,
@@ -132,7 +132,7 @@ class IntegratorFortran:
 
         Length is typically 1 or 2 depending on ω.
         """
-        poles, branches = integrator_core_2d.get_r2_poles_and_branches(
+        poles, branches = integrator_core.get_r2_poles_and_branches(
             omega.real,
             omega.imag,
             self.rho,
@@ -152,7 +152,7 @@ class IntegratorFortran:
         """
         Select the physical square-root pole r from r^2.
         """
-        re, im = integrator_core_2d.pick_pole(
+        re, im = integrator_core.pick_pole(
             r2.real,
             r2.imag,
             omega.real,
@@ -165,7 +165,7 @@ class IntegratorFortran:
     # ------------------------------------------------------------
 
     def integral_3_0(self, omega: complex, normx: complex, branch: int) -> complex:
-        re, im = integrator_core_2d.integral_3_0(
+        re, im = integrator_core.integral_3_0(
             omega.real,
             omega.imag,
             normx.real,
@@ -183,7 +183,7 @@ class IntegratorFortran:
         return re + 1j * im
 
     def integral_3_2(self, omega: complex, normx: complex, branch: int) -> complex:
-        re, im = integrator_core_2d.integral_3_2(
+        re, im = integrator_core.integral_3_2(
             omega.real,
             omega.imag,
             normx.real,
@@ -201,7 +201,7 @@ class IntegratorFortran:
         return re + 1j * im
 
     def integral_2_1(self, omega: complex, normx: complex, branch: int) -> complex:
-        re, im = integrator_core_2d.integral_2_1(
+        re, im = integrator_core.integral_2_1(
             omega.real,
             omega.imag,
             normx.real,
@@ -219,7 +219,7 @@ class IntegratorFortran:
         return re + 1j * im
 
     def integral_1_0(self, omega: complex, normx: complex, branch: int) -> complex:
-        re, im = integrator_core_2d.integral_1_0(
+        re, im = integrator_core.integral_1_0(
             omega.real,
             omega.imag,
             normx.real,
@@ -243,7 +243,7 @@ class IntegratorFortran:
     def integrand_3_0(
         self, r: complex, omega: complex, normx: complex, branch: int
     ) -> complex:
-        re, im = integrator_core_2d.integrand_3_0(
+        re, im = integrator_core.integrand_3_0(
             r.real,
             r.imag,
             omega.real,
@@ -265,7 +265,7 @@ class IntegratorFortran:
     def integrand_3_2(
         self, r: complex, omega: complex, normx: complex, branch: int
     ) -> complex:
-        re, im = integrator_core_2d.integrand_3_2(
+        re, im = integrator_core.integrand_3_2(
             r.real,
             r.imag,
             omega.real,
@@ -287,7 +287,7 @@ class IntegratorFortran:
     def integrand_2_1(
         self, r: complex, omega: complex, normx: complex, branch: int
     ) -> complex:
-        re, im = integrator_core_2d.integrand_2_1(
+        re, im = integrator_core.integrand_2_1(
             r.real,
             r.imag,
             omega.real,
@@ -309,7 +309,7 @@ class IntegratorFortran:
     def integrand_1_0(
         self, r: complex, omega: complex, normx: complex, branch: int
     ) -> complex:
-        re, im = integrator_core_2d.integrand_1_0(
+        re, im = integrator_core.integrand_1_0(
             r.real,
             r.imag,
             omega.real,
@@ -364,7 +364,7 @@ class IntegratorFortran:
         )
 
         # Get the C function capsule
-        capsule = integrator_core_2d.integrand_llc_capsule()
+        capsule = integrator_core.integrand_llc_capsule()
 
         llc = LowLevelCallable(capsule, c_void_p(addressof(ctx)))
         return llc, ctx
@@ -389,7 +389,7 @@ class IntegratorFortran:
         tuple
             3x3 matrix as tuple of tuples, each element is a complex number
         """
-        return integrator_core_2d.greens_x_omega_P_c(
+        return integrator_core.greens_x_omega_P_c(
             x,
             omega.real,
             omega.imag,
@@ -419,7 +419,7 @@ class IntegratorFortran:
         tuple
             3x3 matrix as tuple of tuples, each element is a complex number
         """
-        return integrator_core_2d.greens_x_omega_plus_c(
+        return integrator_core.greens_x_omega_plus_c(
             x,
             omega.real,
             omega.imag,
@@ -449,7 +449,7 @@ class IntegratorFortran:
         tuple
             3x3 matrix as tuple of tuples, each element is a complex number
         """
-        return integrator_core_2d.greens_x_omega_minus_c(
+        return integrator_core.greens_x_omega_minus_c(
             x,
             omega.real,
             omega.imag,
@@ -481,7 +481,7 @@ class IntegratorFortran:
         tuple
             3x3 matrix as tuple of tuples, each element is a complex number
         """
-        return integrator_core_2d.greens_x_omega_c(
+        return integrator_core.greens_x_omega_c(
             x,
             omega.real,
             omega.imag,
@@ -552,7 +552,7 @@ class IntegratorFortran:
 
         # Call vectorized Fortran backend
         # Returns list of tuples (one per omega)
-        result_list = integrator_core_2d.greens_x_omega_vectorized_c(
+        result_list = integrator_core.greens_x_omega_vectorized_c(
             x,
             omega_array,
             self.rho,

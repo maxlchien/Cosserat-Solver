@@ -555,12 +555,12 @@ static PyMethodDef CosseratMethods[] = {
 
 static struct PyModuleDef cosseratmodule = {
     PyModuleDef_HEAD_INIT,
-    "cosserat_core_3d",
+    "cosserat_core",
     "Cosserat Green's functions",
     -1,
     CosseratMethods
 };
 
-PyMODINIT_FUNC PyInit_cosserat_core_3d(void) {
+PyMODINIT_FUNC PyInit_cosserat_core(void) {
     return PyModule_Create(&cosseratmodule);
 }

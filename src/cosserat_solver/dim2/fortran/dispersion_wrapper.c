@@ -155,12 +155,12 @@ static PyMethodDef DispersionMethods[] = {
 
 static struct PyModuleDef dispersionmodule = {
     PyModuleDef_HEAD_INIT,
-    "dispersion_core_2d",
+    "dispersion_core",
     "Cosserat dispersion relation solver",
     -1,
     DispersionMethods
 };
 
-PyMODINIT_FUNC PyInit_dispersion_core_2d(void) {
+PyMODINIT_FUNC PyInit_dispersion_core(void) {
     return PyModule_Create(&dispersionmodule);
 }

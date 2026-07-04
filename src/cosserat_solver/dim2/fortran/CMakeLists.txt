@@ -55,7 +55,14 @@ target_link_libraries(integrator_core_2d PRIVATE
   amos
 )
 
+# drop postfix in the python package name
+set_target_properties(dispersion_core_2d PROPERTIES
+  OUTPUT_NAME "dispersion_core"
+)
 
+set_target_properties(integrator_core_2d PROPERTIES
+  OUTPUT_NAME "integrator_core"
+)
 
 install(TARGETS dispersion_core_2d DESTINATION cosserat_solver/dim2)
 install(TARGETS integrator_core_2d DESTINATION cosserat_solver/dim2)

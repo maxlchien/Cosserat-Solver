@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from cosserat_solver.dim2 import dispersion_core_2d
+    from cosserat_solver.dim2 import dispersion_core
 
     HAS_FORTRAN = True
 except ImportError:
@@ -28,7 +28,7 @@ class DispersionHelperFortran:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core_2d.c_pm(
+        result_real, result_imag = dispersion_core.c_pm(
             real, imag, branch, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
         )
         return complex(result_real, result_imag)
@@ -37,7 +37,7 @@ class DispersionHelperFortran:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core_2d.c_pm_prime(
+        result_real, result_imag = dispersion_core.c_pm_prime(
             real, imag, branch, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
         )
         return complex(result_real, result_imag)
@@ -46,7 +46,7 @@ class DispersionHelperFortran:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core_2d.dispersion_A(
+        result_real, result_imag = dispersion_core.dispersion_A(
             real, imag, self.rho, self.nu, self.J
         )
         return complex(result_real, result_imag)
@@ -55,7 +55,7 @@ class DispersionHelperFortran:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core_2d.dispersion_B(
+        result_real, result_imag = dispersion_core.dispersion_B(
             real, imag, self.rho, self.mu, self.nu, self.J, self.mu_c, self.nu_c
         )
         return complex(result_real, result_imag)
@@ -64,7 +64,7 @@ class DispersionHelperFortran:
         real = float(np.real(r))
         imag = float(np.imag(r))
 
-        result_real, result_imag = dispersion_core_2d.dispersion_C(
+        result_real, result_imag = dispersion_core.dispersion_C(
             real, imag, self.rho, self.nu, self.J
         )
         return complex(result_real, result_imag)
@@ -74,7 +74,7 @@ class DispersionHelperFortran:
         r_imag = float(np.imag(r))
         c_real = float(np.real(c))
         c_imag = float(np.imag(c))
-        result_real, result_imag = dispersion_core_2d.dispersion(
+        result_real, result_imag = dispersion_core.dispersion(
             r_real,
             r_imag,
             c_real,
@@ -91,7 +91,7 @@ class DispersionHelperFortran:
     def _dispersion_zero(self, r: complex, branch: int) -> complex:
         r_real = float(np.real(r))
         r_imag = float(np.imag(r))
-        result_real, result_imag = dispersion_core_2d.dispersion_zero(
+        result_real, result_imag = dispersion_core.dispersion_zero(
             r_real,
             r_imag,
             branch,

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from cosserat_solver.dim3 import elastic_core_3d
+    from cosserat_solver.dim3 import cosserat_core
 
     HAS_FORTRAN = True
 except ImportError:
@@ -104,11 +104,11 @@ def greens_mixed_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    G = np.zeros((6, 6), dtype=np.complex128)
-    G[:, :3] = greens_displacement_force(
-        x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    return np.array(
+        cosserat_core.greens_mixed_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
     )
-    return G
 
 
 def greens_mixed_force_vectorized(
@@ -126,7 +126,7 @@ def greens_mixed_force_vectorized(
     force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
+    Compute the Green's function for the response to a mixed force source in a 3D Cosserat medium.
 
     Automatically detects whether omega is scalar or array and handles appropriately.
     Scalar inputs are converted to length-1 arrays internally for unified processing.
@@ -163,14 +163,15 @@ def greens_mixed_force_vectorized(
     Returns
     -------
     np.ndarray
-        If omega is scalar: shape (3, 3) complex array
-        If omega is array: shape (n_omega, 3, 3) complex array
+        If omega is scalar: shape (6, 6) complex array
+        If omega is array: shape (n_omega, 6, 6) complex array
 
     Raises
     ------
     ValueError
         If both force_use_openmp and force_no_openmp are True
     """
+
     # Validate mutual exclusivity
     if force_use_openmp and force_no_openmp:
         err = "force_use_openmp and force_no_openmp are mutually exclusive"
@@ -189,7 +190,9 @@ def greens_mixed_force_vectorized(
             raise ValueError(err)
         squeeze_output = False
 
-    disp_block = greens_displacement_force_vectorized(
+    # Call vectorized Fortran backend
+    # Returns list of tuples (one per omega)
+    result_list = cosserat_core.greens_mixed_force_vectorized(
         x,
         omega_array,
         rho,
@@ -200,20 +203,20 @@ def greens_mixed_force_vectorized(
         lam_c,
         mu_c,
         nu_c,
-        force_use_openmp,
-        force_no_openmp,
+        int(force_use_openmp),
+        int(force_no_openmp),
     )
 
-    n_omega = len(omega_array)
+    # Convert list of tuples to numpy array
+    n_omega = len(result_list)
+    result_array = np.zeros((n_omega, 6, 6), dtype=np.complex128)
+    for i, matrix_tuple in enumerate(result_list):
+        result_array[i] = np.array(matrix_tuple, dtype=np.complex128)
 
     # Return scalar result if input was scalar
     if squeeze_output:
-        G = np.zeros((6, 6), dtype=np.complex128)
-        G[:, :3] = disp_block[0]
-        return G
-    G = np.zeros((n_omega, 6, 6), dtype=np.complex128)
-    G[:, :, :3] = disp_block
-    return G
+        return result_array[0]
+    return result_array
 
 
 def greens_displacement_force_from_dict(
@@ -300,7 +303,6 @@ def greens_displacement_force(
             A 6x3 complex array representing the Green's function for response to a displacement force source.
             The indices correspond to (displacement component, rotation component).
     """
-    _ = (nu, J, lam_c, mu_c, nu_c)  # Unused parameters for the elastic case
 
     if len(x) != 3:
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
@@ -310,9 +312,11 @@ def greens_displacement_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    G = np.zeros((6, 3), dtype=np.complex128)
-    G[:3, :] = elastic_core_3d.greens_displacement_force(x, omega, rho, lam, mu)
-    return G
+    return np.array(
+        cosserat_core.greens_displacement_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
+    )
 
 
 def greens_displacement_force_vectorized(
@@ -330,7 +334,7 @@ def greens_displacement_force_vectorized(
     force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a displacement force source in a 3D elastic medium.
+    Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium.
 
     Automatically detects whether omega is scalar or array and handles appropriately.
     Scalar inputs are converted to length-1 arrays internally for unified processing.
@@ -375,7 +379,6 @@ def greens_displacement_force_vectorized(
     ValueError
         If both force_use_openmp and force_no_openmp are True
     """
-    _ = (nu, J, lam_c, mu_c, nu_c)  # Unused parameters for the elastic case
 
     # Validate mutual exclusivity
     if force_use_openmp and force_no_openmp:
@@ -397,30 +400,85 @@ def greens_displacement_force_vectorized(
 
     # Call vectorized Fortran backend
     # Returns list of tuples (one per omega)
-    result_list = elastic_core_3d.greens_displacement_force_vectorized(
+    result_list = cosserat_core.greens_displacement_force_vectorized(
         x,
         omega_array,
         rho,
         lam,
         mu,
+        nu,
+        J,
+        lam_c,
+        mu_c,
+        nu_c,
         int(force_use_openmp),
         int(force_no_openmp),
     )
 
     # Convert list of tuples to numpy array
     n_omega = len(result_list)
-    result_array = np.zeros((n_omega, 3, 3), dtype=np.complex128)
+    result_array = np.zeros((n_omega, 6, 3), dtype=np.complex128)
     for i, matrix_tuple in enumerate(result_list):
         result_array[i] = np.array(matrix_tuple, dtype=np.complex128)
 
     # Return scalar result if input was scalar
     if squeeze_output:
-        G = np.zeros((6, 3), dtype=np.complex128)
-        G[:3, :] = result_array[0]
-        return G
-    G = np.zeros((n_omega, 6, 3), dtype=np.complex128)
-    G[:, :3, :] = result_array
-    return G
+        return result_array[0]
+    return result_array
+
+
+def greens_displacement_force_static(
+    x: np.ndarray,
+    _rho: float,
+    _lam: float,
+    _mu: float,
+    _nu: float,
+    _J: float,
+    _lam_c: float,
+    _mu_c: float,
+    _nu_c: float,
+) -> np.ndarray:
+    """Compute the Green's function for the response to a displacement force source in a 3D Cosserat medium at zero frequency (static case).
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a displacement force source.
+    """
+    # This needs to be derived from Eringen's book and for now is implemented as a zero response
+
+    if len(x) != 3:
+        err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
+        raise ValueError(err)
+
+    if np.linalg.norm(x) == 0:
+        err = "Spatial location x cannot be the zero vector for Green's function evaluation."
+        raise ValueError(err)
+
+    return np.array(
+        cosserat_core.greens_displacement_force_static(
+            x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+        )
+    )
 
 
 def greens_rotation_force_from_dict(
@@ -429,7 +487,7 @@ def greens_rotation_force_from_dict(
     material_params: dict,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
+    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
 
     Parameters:
         x: np.ndarray
@@ -479,7 +537,7 @@ def greens_rotation_force(
     nu_c: float,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
+    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
 
     Parameters:
         x: np.ndarray
@@ -509,19 +567,6 @@ def greens_rotation_force(
             The indices correspond to (displacement component, rotation component).
     """
 
-    _ = (
-        x,
-        omega,
-        rho,
-        lam,
-        mu,
-        nu,
-        J,
-        lam_c,
-        mu_c,
-        nu_c,
-    )  # Unused parameters for the elastic case
-
     if len(x) != 3:
         err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
         raise ValueError(err)
@@ -530,9 +575,11 @@ def greens_rotation_force(
         err = "Spatial location x cannot be the zero vector for Green's function evaluation."
         raise ValueError(err)
 
-    return np.zeros(
-        (6, 3), dtype=np.complex128
-    )  # No response for rotation force in the elastic case
+    return np.array(
+        cosserat_core.greens_rotation_force(
+            x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+        )
+    )
 
 
 def greens_rotation_force_vectorized(
@@ -550,7 +597,7 @@ def greens_rotation_force_vectorized(
     force_no_openmp: bool = False,
 ) -> np.ndarray:
     """
-    Compute the Green's function for the response to a rotation force source in a 3D elastic medium (always zero).
+    Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium.
 
     Automatically detects whether omega is scalar or array and handles appropriately.
     Scalar inputs are converted to length-1 arrays internally for unified processing.
@@ -587,25 +634,14 @@ def greens_rotation_force_vectorized(
     Returns
     -------
     np.ndarray
-        If omega is scalar: shape (3, 3) complex array (all zeros)
-        If omega is array: shape (n_omega, 3, 3) complex array (all zeros)
+        If omega is scalar: shape (6, 3) complex array
+        If omega is array: shape (n_omega, 6, 3) complex array
 
     Raises
     ------
     ValueError
         If both force_use_openmp and force_no_openmp are True
     """
-    _ = (
-        x,
-        rho,
-        lam,
-        mu,
-        nu,
-        J,
-        lam_c,
-        mu_c,
-        nu_c,
-    )  # all parameters unused for rotation
 
     # Validate mutual exclusivity
     if force_use_openmp and force_no_openmp:
@@ -625,9 +661,84 @@ def greens_rotation_force_vectorized(
             raise ValueError(err)
         squeeze_output = False
 
-    # Return zero array since rotation force has no response in the elastic case
-    # Squeeze output if omega was scalar
-    n_omega = len(omega_array)
+    # Call vectorized Fortran backend
+    # Returns list of tuples (one per omega)
+    result_list = cosserat_core.greens_rotation_force_vectorized(
+        x,
+        omega_array,
+        rho,
+        lam,
+        mu,
+        nu,
+        J,
+        lam_c,
+        mu_c,
+        nu_c,
+        int(force_use_openmp),
+        int(force_no_openmp),
+    )
+
+    # Convert list of tuples to numpy array
+    n_omega = len(result_list)
+    result_array = np.zeros((n_omega, 6, 3), dtype=np.complex128)
+    for i, matrix_tuple in enumerate(result_list):
+        result_array[i] = np.array(matrix_tuple, dtype=np.complex128)
+
+    # Return scalar result if input was scalar
     if squeeze_output:
-        return np.zeros((6, 3), dtype=np.complex128)
-    return np.zeros((n_omega, 6, 3), dtype=np.complex128)
+        return result_array[0]
+    return result_array
+
+
+def greens_rotation_force_static(
+    x: np.ndarray,
+    _rho: float,
+    _lam: float,
+    _mu: float,
+    _nu: float,
+    _J: float,
+    _lam_c: float,
+    _mu_c: float,
+    _nu_c: float,
+) -> np.ndarray:
+    """Compute the Green's function for the response to a rotation force source in a 3D Cosserat medium at zero frequency (static case).
+
+    Parameters:
+        x: np.ndarray
+            The spatial location where the Green's function is evaluated. Should be a 3D vector.
+        rho: float
+            Density of the medium.
+        lam: float
+            Lamé's first parameter.
+        mu: float
+            Shear modulus.
+        nu: float
+            Cosserat couple modulus.
+        J: float
+            Micro-inertia.
+        lam_c: float
+            Cosserat Lamé's first parameter.
+        mu_c: float
+            Cosserat shear modulus.
+        nu_c: float
+            Cosserat couple modulus.
+
+    Returns:
+        np.ndarray
+            A 6x3 complex array representing the Green's function for response to a rotation force source.
+    """
+    # This needs to be derived from Eringen's book and for now is implemented as a zero response
+
+    if len(x) != 3:
+        err = f"Spatial location x must have length 3 for 3D problems. Got length {len(x)}."
+        raise ValueError(err)
+
+    if np.linalg.norm(x) == 0:
+        err = "Spatial location x cannot be the zero vector for Green's function evaluation."
+        raise ValueError(err)
+
+    return np.array(
+        cosserat_core.greens_rotation_force_static(
+            x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
+        )
+    )

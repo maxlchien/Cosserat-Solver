@@ -15,7 +15,7 @@ import pytest
 from mpmath import mp
 
 from cosserat_solver import consts
-from cosserat_solver.dim2._integrator_core_2d_wrapper import IntegratorFortran
+from cosserat_solver.dim2._integrator_core_wrapper import IntegratorFortran
 from cosserat_solver.dim2.integrator import Integrator
 from cosserat_solver.greens_wrapper import (
     FORTRAN_AVAILABLE,

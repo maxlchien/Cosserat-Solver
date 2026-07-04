@@ -1,5 +1,5 @@
 """
-Test the Fortran Elastic 3D wrapper module (_elastic_core_3d_wrapper).
+Test the Fortran Elastic 3D wrapper module (_elastic_core_wrapper).
 
 Verifies that the Green's functions are all the same as their Python equivalents, up to double float tolerance.
 """
@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver.dim3._cosserat_core_3d_wrapper as _cosserat_core_3d_wrapper
+import cosserat_solver.dim3._cosserat_core_wrapper as _cosserat_core_wrapper
 import cosserat_solver.dim3.cosserat_3d as cosserat_3d
 
 np.set_printoptions(precision=2)
@@ -19,7 +19,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
 
     # first test from dict
 
-    fortran_greens_from_dict = _cosserat_core_3d_wrapper.greens_mixed_force_from_dict(
+    fortran_greens_from_dict = _cosserat_core_wrapper.greens_mixed_force_from_dict(
         location_3d, omega_value, material_parameters
     )
     python_greens_from_dict = cosserat_3d.greens_mixed_force_from_dict(
@@ -41,7 +41,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
     mu_c = material_parameters["mu_c"]
     nu_c = material_parameters["nu_c"]
 
-    fortran_greens = _cosserat_core_3d_wrapper.greens_mixed_force(
+    fortran_greens = _cosserat_core_wrapper.greens_mixed_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     python_greens = cosserat_3d.greens_mixed_force(
@@ -59,7 +59,7 @@ def test_compare_greens_displacement(material_parameters, omega_value, location_
     # first test from dict
 
     fortran_greens_from_dict = (
-        _cosserat_core_3d_wrapper.greens_displacement_force_from_dict(
+        _cosserat_core_wrapper.greens_displacement_force_from_dict(
             location_3d, omega_value, material_parameters
         )
     )
@@ -81,7 +81,7 @@ def test_compare_greens_displacement(material_parameters, omega_value, location_
     mu_c = material_parameters["mu_c"]
     nu_c = material_parameters["nu_c"]
 
-    fortran_greens = _cosserat_core_3d_wrapper.greens_displacement_force(
+    fortran_greens = _cosserat_core_wrapper.greens_displacement_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     python_greens = cosserat_3d.greens_displacement_force(
@@ -98,10 +98,8 @@ def test_compare_greens_rotation(material_parameters, omega_value, location_3d):
 
     # first test from dict
 
-    fortran_greens_from_dict = (
-        _cosserat_core_3d_wrapper.greens_rotation_force_from_dict(
-            location_3d, omega_value, material_parameters
-        )
+    fortran_greens_from_dict = _cosserat_core_wrapper.greens_rotation_force_from_dict(
+        location_3d, omega_value, material_parameters
     )
     python_greens_from_dict = cosserat_3d.greens_rotation_force_from_dict(
         location_3d, omega_value, material_parameters
@@ -121,7 +119,7 @@ def test_compare_greens_rotation(material_parameters, omega_value, location_3d):
     mu_c = material_parameters["mu_c"]
     nu_c = material_parameters["nu_c"]
 
-    fortran_greens = _cosserat_core_3d_wrapper.greens_rotation_force(
+    fortran_greens = _cosserat_core_wrapper.greens_rotation_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     python_greens = cosserat_3d.greens_rotation_force(
@@ -146,7 +144,7 @@ def test_compare_greens_displacement_static(material_parameters, location_3d):
     mu_c = material_parameters["mu_c"]
     nu_c = material_parameters["nu_c"]
 
-    fortran_greens = _cosserat_core_3d_wrapper.greens_displacement_force_static(
+    fortran_greens = _cosserat_core_wrapper.greens_displacement_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     python_greens = cosserat_3d.greens_displacement_force_static(
@@ -171,7 +169,7 @@ def test_compare_greens_rotation_static(material_parameters, location_3d):
     mu_c = material_parameters["mu_c"]
     nu_c = material_parameters["nu_c"]
 
-    fortran_greens = _cosserat_core_3d_wrapper.greens_rotation_force_static(
+    fortran_greens = _cosserat_core_wrapper.greens_rotation_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     python_greens = cosserat_3d.greens_rotation_force_static(
@@ -190,7 +188,7 @@ def test_mixed_vectorized(material_parameters, location_3d):
     # serial computation
     greens_serial = np.zeros((len(omega_array), 6, 6), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
-        greens_serial[i] = _cosserat_core_3d_wrapper.greens_mixed_force(
+        greens_serial[i] = _cosserat_core_wrapper.greens_mixed_force(
             location_3d,
             omega,
             material_parameters["rho"],
@@ -207,7 +205,7 @@ def test_mixed_vectorized(material_parameters, location_3d):
     greens_serial_vectorized = np.zeros((len(omega_array), 6, 6), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
         greens_serial_vectorized[i] = (
-            _cosserat_core_3d_wrapper.greens_mixed_force_vectorized(
+            _cosserat_core_wrapper.greens_mixed_force_vectorized(
                 location_3d,
                 omega,
                 material_parameters["rho"],
@@ -222,7 +220,7 @@ def test_mixed_vectorized(material_parameters, location_3d):
         )  # when passing a scalar, the vectorized call should squeeze automatically
 
     # vectorized computation
-    greens_vectorized = _cosserat_core_3d_wrapper.greens_mixed_force_vectorized(
+    greens_vectorized = _cosserat_core_wrapper.greens_mixed_force_vectorized(
         location_3d,
         omega_array,
         material_parameters["rho"],
@@ -251,7 +249,7 @@ def test_displacement_vectorized(material_parameters, location_3d):
     # serial computation
     greens_serial = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
-        greens_serial[i] = _cosserat_core_3d_wrapper.greens_displacement_force(
+        greens_serial[i] = _cosserat_core_wrapper.greens_displacement_force(
             location_3d,
             omega,
             material_parameters["rho"],
@@ -268,7 +266,7 @@ def test_displacement_vectorized(material_parameters, location_3d):
     greens_serial_vectorized = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
         greens_serial_vectorized[i] = (
-            _cosserat_core_3d_wrapper.greens_displacement_force_vectorized(
+            _cosserat_core_wrapper.greens_displacement_force_vectorized(
                 location_3d,
                 omega,
                 material_parameters["rho"],
@@ -283,7 +281,7 @@ def test_displacement_vectorized(material_parameters, location_3d):
         )  # when passing a scalar, the vectorized call should squeeze automatically
 
     # vectorized computation
-    greens_vectorized = _cosserat_core_3d_wrapper.greens_displacement_force_vectorized(
+    greens_vectorized = _cosserat_core_wrapper.greens_displacement_force_vectorized(
         location_3d,
         omega_array,
         material_parameters["rho"],
@@ -312,7 +310,7 @@ def test_rotation_vectorized(material_parameters, location_3d):
     # serial computation
     greens_serial = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
-        greens_serial[i] = _cosserat_core_3d_wrapper.greens_rotation_force(
+        greens_serial[i] = _cosserat_core_wrapper.greens_rotation_force(
             location_3d,
             omega,
             material_parameters["rho"],
@@ -329,7 +327,7 @@ def test_rotation_vectorized(material_parameters, location_3d):
     greens_serial_vectorized = np.zeros((len(omega_array), 6, 3), dtype=np.complex128)
     for i, omega in enumerate(omega_array):
         greens_serial_vectorized[i] = (
-            _cosserat_core_3d_wrapper.greens_rotation_force_vectorized(
+            _cosserat_core_wrapper.greens_rotation_force_vectorized(
                 location_3d,
                 omega,
                 material_parameters["rho"],
@@ -344,7 +342,7 @@ def test_rotation_vectorized(material_parameters, location_3d):
         )  # when passing a scalar, the vectorized call should squeeze automatically
 
     # vectorized computation
-    greens_vectorized = _cosserat_core_3d_wrapper.greens_rotation_force_vectorized(
+    greens_vectorized = _cosserat_core_wrapper.greens_rotation_force_vectorized(
         location_3d,
         omega_array,
         material_parameters["rho"],

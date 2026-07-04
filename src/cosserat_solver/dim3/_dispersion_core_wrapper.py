@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from cosserat_solver.dim3 import dispersion_core_3d
+    from cosserat_solver.dim3 import dispersion_core
 
     HAS_FORTRAN = True
 except ImportError:
@@ -10,22 +10,22 @@ except ImportError:
 
 def c1_squared(rho: float, lam: float, mu: float) -> float:
     """Calculate the squared velocity c1^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.c1_squared(rho, lam, mu)
+    return dispersion_core.c1_squared(rho, lam, mu)
 
 
 def c2_squared(rho: float, mu: float, nu: float) -> float:
     """Calculate the squared velocity c2^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.c2_squared(rho, mu, nu)
+    return dispersion_core.c2_squared(rho, mu, nu)
 
 
 def c3_squared(J: float, lam_c: float, mu_c: float) -> float:
     """Calculate the squared velocity c3^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.c3_squared(J, lam_c, mu_c)
+    return dispersion_core.c3_squared(J, lam_c, mu_c)
 
 
 def c4_squared(J: float, mu_c: float, nu_c: float) -> float:
     """Calculate the squared velocity c4^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.c4_squared(J, mu_c, nu_c)
+    return dispersion_core.c4_squared(J, mu_c, nu_c)
 
 
 def all_c_squared(
@@ -63,7 +63,7 @@ def all_c_squared_from_dict(material_params: dict) -> tuple[float, float, float,
 
 def w0_squared(nu: float, J: float) -> float:
     """Calculate the squared velocity w0^2 for the 3D Cosserat medium."""
-    return dispersion_core_3d.w0_squared(nu, J)
+    return dispersion_core.w0_squared(nu, J)
 
 
 def dispersion_r(
@@ -84,9 +84,7 @@ def dispersion_r(
 
     as according to Eringen (1999) equation (5.11.20).
     """
-    return dispersion_core_3d.dispersion_r(
-        omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-    )
+    return dispersion_core.dispersion_r(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
 
 def dispersion_s(
@@ -107,14 +105,12 @@ def dispersion_s(
 
     as according to Eringen (1999) equation (5.11.20).
     """
-    return dispersion_core_3d.dispersion_s(
-        omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-    )
+    return dispersion_core.dispersion_s(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
 
 def k1_squared(omega: float, rho: float, lam: float, mu: float) -> complex:
     """Calculate the squared wavenumber k1^2 for the 3D Cosserat medium."""
-    result_real, result_imag = dispersion_core_3d.k1_squared(omega, rho, lam, mu)
+    result_real, result_imag = dispersion_core.k1_squared(omega, rho, lam, mu)
     return complex(result_real, result_imag)
 
 
@@ -130,7 +126,7 @@ def k2_squared(
     nu_c: float,
 ) -> complex:
     """Calculate the squared wavenumber k2^2 for the 3D Cosserat medium."""
-    result_real, result_imag = dispersion_core_3d.k2_squared(
+    result_real, result_imag = dispersion_core.k2_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     return complex(result_real, result_imag)
@@ -138,7 +134,7 @@ def k2_squared(
 
 def k3_squared(omega: float, nu: float, J: float, lam_c: float, mu_c: float) -> complex:
     """Calculate the squared wavenumber k3^2 for the 3D Cosserat medium."""
-    result_real, result_imag = dispersion_core_3d.k3_squared(omega, nu, J, lam_c, mu_c)
+    result_real, result_imag = dispersion_core.k3_squared(omega, nu, J, lam_c, mu_c)
     return complex(result_real, result_imag)
 
 
@@ -154,7 +150,7 @@ def k4_squared(
     nu_c: float,
 ) -> complex:
     """Calculate the squared wavenumber k4^2 for the 3D Cosserat medium."""
-    result_real, result_imag = dispersion_core_3d.k4_squared(
+    result_real, result_imag = dispersion_core.k4_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
     return complex(result_real, result_imag)
@@ -192,14 +188,10 @@ def all_k(
     nu_c: float,
 ) -> tuple[complex, complex, complex, complex]:
     """Calculate all wavenumbers k1, k2, k3, k4 for the 3D Cosserat medium."""
-    k1_real, k1_imag = dispersion_core_3d.k1(omega, rho, lam, mu)
-    k2_real, k2_imag = dispersion_core_3d.k2(
-        omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-    )
-    k3_real, k3_imag = dispersion_core_3d.k3(omega, nu, J, lam_c, mu_c)
-    k4_real, k4_imag = dispersion_core_3d.k4(
-        omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
-    )
+    k1_real, k1_imag = dispersion_core.k1(omega, rho, lam, mu)
+    k2_real, k2_imag = dispersion_core.k2(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    k3_real, k3_imag = dispersion_core.k3(omega, nu, J, lam_c, mu_c)
+    k4_real, k4_imag = dispersion_core.k4(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
     return (
         complex(k1_real, k1_imag),
         complex(k2_real, k2_imag),

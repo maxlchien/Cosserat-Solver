@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver.dim2._dispersion_core_2d_wrapper import DispersionHelperFortran
+from cosserat_solver.dim2._dispersion_core_wrapper import DispersionHelperFortran
 from cosserat_solver.dim2.dispersion import DispersionHelper as DispersionHelperPython
 
 

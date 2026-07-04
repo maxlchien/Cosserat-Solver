@@ -157,12 +157,12 @@ static PyMethodDef ElasticMethods[] = {
 
 static struct PyModuleDef elasticmodule = {
     PyModuleDef_HEAD_INIT,
-    "elastic_core_3d",
+    "elastic_core",
     "Elastic Green's functions",
     -1,
     ElasticMethods
 };
 
-PyMODINIT_FUNC PyInit_elastic_core_3d(void) {
+PyMODINIT_FUNC PyInit_elastic_core(void) {
     return PyModule_Create(&elasticmodule);
 }
