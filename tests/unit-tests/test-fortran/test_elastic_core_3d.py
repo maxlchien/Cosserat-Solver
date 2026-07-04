@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver._elastic_core_3d_wrapper as _elastic_core_3d_wrapper
-import cosserat_solver.elastic_3d as elastic_3d
+import cosserat_solver.dim3._elastic_core_3d_wrapper as _elastic_core_3d_wrapper
+import cosserat_solver.dim3.elastic_3d as elastic_3d
 
 
 def test_compare_greens_mixed(material_parameters, omega_value, location_3d):

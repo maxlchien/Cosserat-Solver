@@ -6,8 +6,8 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver._dispersion_core_3d_wrapper as dispersion_core_3d_wrapper
-import cosserat_solver.dispersion_3d as dispersion_core_3d
+import cosserat_solver.dim3._dispersion_core_3d_wrapper as dispersion_core_3d_wrapper
+import cosserat_solver.dim3.dispersion_3d as dispersion_core_3d
 
 
 def test_compare_cn_squared(material_parameters):

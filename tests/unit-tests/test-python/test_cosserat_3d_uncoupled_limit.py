@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver import cosserat_3d, elastic_3d
+from cosserat_solver.dim3 import cosserat_3d, elastic_3d
 
 
 def test_uncoupled_displacement_force_matches_classical(

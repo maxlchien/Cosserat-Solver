@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver.dispersion_3d as dispersion_3d
+import cosserat_solver.dim3.dispersion_3d as dispersion_3d
 
 
 def greens_mixed_force_from_dict(

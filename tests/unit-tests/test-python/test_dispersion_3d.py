@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver import dispersion_3d
+from cosserat_solver.dim3 import dispersion_3d
 
 
 def test_k_branches(material_parameters: dict, omega_value: float) -> None:

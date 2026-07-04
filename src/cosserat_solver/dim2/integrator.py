@@ -5,7 +5,7 @@ import scipy.special
 from mpmath import mp
 
 import cosserat_solver.consts as consts
-from cosserat_solver.dispersion import DispersionHelper
+from cosserat_solver.dim2.dispersion import DispersionHelper
 
 
 class Integrator:

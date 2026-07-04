@@ -6,7 +6,7 @@ import pytest
 from mpmath import mp
 
 import cosserat_solver.consts as consts
-from cosserat_solver.integrator import Integrator
+from cosserat_solver.dim2.integrator import Integrator
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 # allow for integration to get skipped except during Github Actions tests

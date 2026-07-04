@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver._integrator_core_2d_wrapper import IntegratorFortran
-from cosserat_solver.integrator import Integrator
+from cosserat_solver.dim2._integrator_core_2d_wrapper import IntegratorFortran
+from cosserat_solver.dim2.integrator import Integrator
 
 
 def test_denom_fortran_vs_python(material_parameters, k_value, omega_value, branch):

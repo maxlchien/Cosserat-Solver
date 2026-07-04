@@ -15,8 +15,8 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver._dispersion_core_2d_wrapper import DispersionHelperFortran
-from cosserat_solver.dispersion import DispersionHelper as DispersionHelperPython
+from cosserat_solver.dim2._dispersion_core_2d_wrapper import DispersionHelperFortran
+from cosserat_solver.dim2.dispersion import DispersionHelper as DispersionHelperPython
 
 
 def test_compare_dispersion_A(material_parameters, wave_parameters):

@@ -8,8 +8,8 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver._cosserat_core_3d_wrapper as _cosserat_core_3d_wrapper
-import cosserat_solver.cosserat_3d as cosserat_3d
+import cosserat_solver.dim3._cosserat_core_3d_wrapper as _cosserat_core_3d_wrapper
+import cosserat_solver.dim3.cosserat_3d as cosserat_3d
 
 np.set_printoptions(precision=2)
 
