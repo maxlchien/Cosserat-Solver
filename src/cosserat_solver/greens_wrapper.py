@@ -31,6 +31,8 @@ except ImportError:
         from cosserat_solver.dim2._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
+from loguru import logger
+
 import cosserat_solver.dim3.cosserat as cosserat
 import cosserat_solver.dim3.elastic as elastic
 from cosserat_solver import consts
@@ -49,6 +51,7 @@ def get_material_tag(material_type: str) -> int:
         return MATERIAL_TYPE_COSSERAT
 
     msg = f"Unknown material type: {material_type}. Supported types are 'elastic' and 'cosserat'."
+    logger.error(msg)
     raise ValueError(msg)
 
 
@@ -76,6 +79,7 @@ def _validate_material_params(material_params: dict) -> None:
     missing = [key for key in required_keys if key not in material_params]
     if missing:
         err = f"Missing material parameters: {missing}"
+        logger.error(err)
         raise ValueError(err)
 
 
@@ -84,6 +88,7 @@ def _validate_dimension_backend_material_combo(
 ) -> None:
     if (dim, backend, material_type) not in SUPPORTED_COMBOS:
         err = f"Combination of dimension {dim}, backend {backend}, and material type {material_type} is not supported."
+        logger.error(err)
         raise ValueError(err)
 
 
@@ -127,6 +132,7 @@ def evaluate_greens_fortran(
     """
     if not FORTRAN_AVAILABLE:
         err = "Fortran backend not available."
+        logger.error(err)
         raise RuntimeError(err)
 
     _validate_material_params(material_params)
@@ -148,6 +154,7 @@ def evaluate_greens_fortran(
         # Ensure x is a list/tuple of length 2
         if x.shape != (2,):
             err = "Spatial location x must have shape (2,) for dimension 2."
+            logger.error(err)
             raise ValueError(err)
 
         # Use vectorized backend - automatically handles array
@@ -166,6 +173,7 @@ def evaluate_greens_fortran(
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
+            logger.error(err)
             raise ValueError(err)
 
         return elastic_wrapper.greens_mixed_force_vectorized(
@@ -197,6 +205,7 @@ def evaluate_greens_fortran(
         # Ensure x is a list/tuple of length 3
         if x.shape != (3,):
             err = "Spatial location x must have shape (3,) for dimension 3."
+            logger.error(err)
             raise ValueError(err)
 
         return cosserat_wrapper.greens_mixed_force_vectorized(
@@ -214,6 +223,7 @@ def evaluate_greens_fortran(
             force_no_openmp=force_no_openmp,
         )  # shape (n_omega, 6, 6)
     err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
+    logger.error(err)
     raise ValueError(err)
 
 
@@ -267,6 +277,7 @@ def evaluate_greens_python(
 
         return integrator.greens_x_omega(x, omega)
     err = f"Invalid dimension {dim}. This function is only for numerics comparisons, and needs to be rewritten for 3D."
+    logger.error(err)
     raise NotImplementedError(err)
 
 
@@ -381,9 +392,9 @@ def get_greens_callback(
                 return fortran_callback
 
             except Exception as e:
-                warnings.warn(
-                    f"Failed to initialize Fortran backend: {e}. Falling back to Python.",
-                    stacklevel=2,
+                logger.warning(
+                    "Failed to initialize Fortran backend: {e}. Falling back to Python.",
+                    e=e,
                 )
         elif dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
             # For 3D elastic, use the elastic_wrapper
@@ -495,6 +506,7 @@ def get_greens_callback(
 
         else:
             err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
+            logger.error(err)
             raise ValueError(err)
 
     # Fall back to Python backend (need to revalidate if Fortran was requested but failed)
@@ -532,6 +544,7 @@ def get_greens_callback(
                     "Python backend only supports scalar omega. "
                     "Use Fortran backend for vectorized evaluation."
                 )
+                logger.error(err)
                 raise ValueError(err)
 
             # Evaluate Green's function
@@ -570,6 +583,7 @@ def get_greens_callback(
                     "Python backend only supports scalar omega. "
                     "Use Fortran backend for vectorized evaluation."
                 )
+                logger.error(err)
                 raise ValueError(err)
 
             # Evaluate Green's function
@@ -617,6 +631,7 @@ def get_greens_callback(
                     "Python backend only supports scalar omega. "
                     "Use Fortran backend for vectorized evaluation."
                 )
+                logger.error(err)
                 raise ValueError(err)
 
             # Evaluate Green's function
@@ -638,4 +653,5 @@ def get_greens_callback(
         return python_callback_3d
 
     err = f"Combination of dimension {dim} and material type {material_type} is not supported for Python backend."
+    logger.error(err)
     raise ValueError(err)

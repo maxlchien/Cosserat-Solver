@@ -3,6 +3,7 @@ from __future__ import annotations
 import os
 
 import numpy as np
+from loguru import logger
 
 import cosserat_solver.consts as consts
 import cosserat_solver.fourier as fourier
@@ -90,13 +91,16 @@ def generate_trace(
 
     if dim not in (2, 3):
         err = f"Invalid dimension {dim}. Dimension must be either 2 or 3."
+        logger.error(err)
         raise ValueError(err)
     if len(x) != dim:
-        err = f"Spatial location x must have length {dim} for dimension {dim}."
+        err = f"Spatial location x must have length {dim} for dimension {dim}, but got length {len(x)}."
+        logger.error(err)
         raise ValueError(err)
 
     if "material_type" not in material_params:
         err = "Material type must be specified in material_params with key 'material_type'."
+        logger.error(err)
         raise ValueError(err)
     material_tag = get_material_tag(material_params["material_type"])
 
@@ -116,6 +120,7 @@ def generate_trace(
     )
 
     if "t0" not in ft_params:
+        logger.debug("t0 not specified in ft_params, using source.t0()")
         ft_params["t0"] = source.t0()
 
     times, greens_time = fourier.cont_ifft(frequency_domain_func, ft_params)
@@ -132,13 +137,24 @@ def generate_trace(
         for channel in channels:
             if output_dir != ".":
                 if not os.path.exists(output_dir):
+                    logger.debug(
+                        "Output directory {output_dir} does not exist. Creating it.",
+                        output_dir=output_dir,
+                    )
                     os.makedirs(output_dir)
                 filename = f"{output_dir}/{trace_prefix}.{channel}"
+                logger.debug("Saving trace to file: {filename}", filename=filename)
             else:
                 filename = f"{trace_prefix}.{channel}"
+                logger.debug("Saving trace to file: {filename}", filename=filename)
 
             with open(filename, "w") as f:
                 for t, val in zip(times, traces[channel], strict=False):
                     f.write(f"{t:.6f} {val:.6e}\n")
+            logger.debug(
+                "Trace {channel} saved to file: {filename}",
+                channel=channel,
+                filename=filename,
+            )
 
     return times, traces
