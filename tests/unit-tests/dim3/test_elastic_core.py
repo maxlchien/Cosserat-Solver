@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 import cosserat_solver.dim3._elastic_core_wrapper as _elastic_core_wrapper
-import cosserat_solver.dim3.elastic_3d as elastic_3d
+import cosserat_solver.dim3.elastic as elastic
 
 
 def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
@@ -20,7 +20,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
     fortran_greens_from_dict = _elastic_core_wrapper.greens_mixed_force_from_dict(
         location_3d, omega_value, material_parameters
     )
-    python_greens_from_dict = elastic_3d.greens_mixed_force_from_dict(
+    python_greens_from_dict = elastic.greens_mixed_force_from_dict(
         location_3d, omega_value, material_parameters
     )
 
@@ -42,7 +42,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
     fortran_greens = _elastic_core_wrapper.greens_mixed_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = elastic_3d.greens_mixed_force(
+    python_greens = elastic.greens_mixed_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 

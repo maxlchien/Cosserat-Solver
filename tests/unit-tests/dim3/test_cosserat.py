@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver.dim3 import cosserat_3d
+from cosserat_solver.dim3 import cosserat
 
 
 def test_shape(material_parameters) -> None:
@@ -12,7 +12,7 @@ def test_shape(material_parameters) -> None:
     x = np.array([1300.0, 700.0, 2000.0])
     omega = 2 * np.pi
 
-    g = cosserat_3d.greens_mixed_force(
+    g = cosserat.greens_mixed_force(
         x,
         omega,
         material_parameters["rho"],
@@ -24,7 +24,7 @@ def test_shape(material_parameters) -> None:
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    g_disp = cosserat_3d.greens_displacement_force(
+    g_disp = cosserat.greens_displacement_force(
         x,
         omega,
         material_parameters["rho"],
@@ -36,7 +36,7 @@ def test_shape(material_parameters) -> None:
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    g_rot = cosserat_3d.greens_rotation_force(
+    g_rot = cosserat.greens_rotation_force(
         x,
         omega,
         material_parameters["rho"],
@@ -63,7 +63,7 @@ def test_block_concatenation(
     """
     x = location_3d
 
-    g_disp = cosserat_3d.greens_displacement_force(
+    g_disp = cosserat.greens_displacement_force(
         x,
         omega_value,
         material_parameters["rho"],
@@ -75,7 +75,7 @@ def test_block_concatenation(
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    g_rot = cosserat_3d.greens_rotation_force(
+    g_rot = cosserat.greens_rotation_force(
         x,
         omega_value,
         material_parameters["rho"],
@@ -87,7 +87,7 @@ def test_block_concatenation(
         material_parameters["mu_c"],
         material_parameters["nu_c"],
     )
-    g_mixed = cosserat_3d.greens_mixed_force(
+    g_mixed = cosserat.greens_mixed_force(
         x,
         omega_value,
         material_parameters["rho"],
@@ -115,7 +115,7 @@ def test_hermitian_conjugacy(
     """
     x = location_3d
 
-    g = cosserat_3d.greens_mixed_force(
+    g = cosserat.greens_mixed_force(
         x,
         omega_value,
         material_parameters["rho"],
@@ -128,7 +128,7 @@ def test_hermitian_conjugacy(
         material_parameters["nu_c"],
     )
 
-    g_minus = cosserat_3d.greens_mixed_force(
+    g_minus = cosserat.greens_mixed_force(
         x,
         -omega_value,
         material_parameters["rho"],

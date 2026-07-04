@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import numpy as np
 
-from cosserat_solver.dim3 import cosserat_3d, elastic_3d
+from cosserat_solver.dim3 import cosserat, elastic
 
 
 def test_uncoupled_displacement_force_matches_classical(
@@ -23,7 +23,7 @@ def test_uncoupled_displacement_force_matches_classical(
 
     nu = 0
 
-    g_cosserat = cosserat_3d.greens_displacement_force(
+    g_cosserat = cosserat.greens_displacement_force(
         x,
         omega,
         material_parameters["rho"],
@@ -36,7 +36,7 @@ def test_uncoupled_displacement_force_matches_classical(
         material_parameters["nu_c"],
     )[:3, :]
 
-    g_classical = elastic_3d.greens_displacement_force(
+    g_classical = elastic.greens_displacement_force(
         x,
         omega,
         material_parameters["rho"],
@@ -72,7 +72,7 @@ def test_limiting_uncoupled_displacement_force_matches_classical(
     for ratio in (1.0e-7, 1.0e-8, 1.0e-9):
         nu = ratio * float(material_parameters["J"])
 
-        g_cosserat = cosserat_3d.greens_displacement_force(
+        g_cosserat = cosserat.greens_displacement_force(
             x,
             omega,
             material_parameters["rho"],
@@ -85,7 +85,7 @@ def test_limiting_uncoupled_displacement_force_matches_classical(
             material_parameters["nu_c"],
         )[:3, :]
 
-        g_classical = elastic_3d.greens_displacement_force(
+        g_classical = elastic.greens_displacement_force(
             x,
             omega,
             material_parameters["rho"],
@@ -120,7 +120,7 @@ def test_uncoupled_rotation_force_matches_classical(
 
     nu = 0
 
-    g_cosserat = cosserat_3d.greens_rotation_force(
+    g_cosserat = cosserat.greens_rotation_force(
         x,
         omega,
         material_parameters["rho"],
@@ -133,7 +133,7 @@ def test_uncoupled_rotation_force_matches_classical(
         material_parameters["nu_c"],
     )[3:, :]
 
-    g_classical = elastic_3d.greens_displacement_force(
+    g_classical = elastic.greens_displacement_force(
         x,
         omega,
         material_parameters["J"],
@@ -175,7 +175,7 @@ def test_limiting_uncoupled_rotation_force_matches_classical(
     for ratio in (1.0e-7, 1.0e-8, 1.0e-9):
         nu = ratio * float(material_parameters["J"])
 
-        g_cosserat = cosserat_3d.greens_rotation_force(
+        g_cosserat = cosserat.greens_rotation_force(
             x,
             omega,
             material_parameters["rho"],
@@ -188,7 +188,7 @@ def test_limiting_uncoupled_rotation_force_matches_classical(
             material_parameters["nu_c"],
         )[3:, :]
 
-        g_classical = elastic_3d.greens_displacement_force(
+        g_classical = elastic.greens_displacement_force(
             x,
             omega,
             material_parameters["J"],
@@ -227,7 +227,7 @@ def test_uncoupled_forces_are_symmetric(
 
     nu = 0
 
-    g_cosserat_disp = cosserat_3d.greens_displacement_force(
+    g_cosserat_disp = cosserat.greens_displacement_force(
         x,
         omega,
         material_parameters["rho"],
@@ -240,7 +240,7 @@ def test_uncoupled_forces_are_symmetric(
         material_parameters["nu_c"],
     )[:3, :]
 
-    g_cosserat_rot = cosserat_3d.greens_rotation_force(
+    g_cosserat_rot = cosserat.greens_rotation_force(
         x,
         omega,
         material_parameters["J"],
@@ -271,7 +271,7 @@ def test_limiting_uncoupled_forces_are_symmetric(
     for ratio in (1.0e-7, 1.0e-8, 1.0e-9):
         nu = ratio * float(material_parameters["J"])
 
-        g_cosserat_disp = cosserat_3d.greens_displacement_force(
+        g_cosserat_disp = cosserat.greens_displacement_force(
             x,
             omega,
             material_parameters["J"],
@@ -288,7 +288,7 @@ def test_limiting_uncoupled_forces_are_symmetric(
             0,
         )[:3, :]
 
-        g_cosserat_rot = cosserat_3d.greens_rotation_force(
+        g_cosserat_rot = cosserat.greens_rotation_force(
             x,
             omega,
             material_parameters["rho"],
@@ -301,7 +301,7 @@ def test_limiting_uncoupled_forces_are_symmetric(
             material_parameters["nu_c"],
         )[3:, :]
 
-        g_elastic = elastic_3d.greens_displacement_force(
+        g_elastic = elastic.greens_displacement_force(
             x,
             omega,
             material_parameters["J"],

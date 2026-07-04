@@ -9,7 +9,7 @@ from __future__ import annotations
 import numpy as np
 
 import cosserat_solver.dim3._cosserat_core_wrapper as _cosserat_core_wrapper
-import cosserat_solver.dim3.cosserat_3d as cosserat_3d
+import cosserat_solver.dim3.cosserat as cosserat
 
 np.set_printoptions(precision=2)
 
@@ -22,7 +22,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
     fortran_greens_from_dict = _cosserat_core_wrapper.greens_mixed_force_from_dict(
         location_3d, omega_value, material_parameters
     )
-    python_greens_from_dict = cosserat_3d.greens_mixed_force_from_dict(
+    python_greens_from_dict = cosserat.greens_mixed_force_from_dict(
         location_3d, omega_value, material_parameters
     )
 
@@ -44,7 +44,7 @@ def test_compare_greens_mixed(material_parameters, omega_value, location_3d):
     fortran_greens = _cosserat_core_wrapper.greens_mixed_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = cosserat_3d.greens_mixed_force(
+    python_greens = cosserat.greens_mixed_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 
@@ -63,7 +63,7 @@ def test_compare_greens_displacement(material_parameters, omega_value, location_
             location_3d, omega_value, material_parameters
         )
     )
-    python_greens_from_dict = cosserat_3d.greens_displacement_force_from_dict(
+    python_greens_from_dict = cosserat.greens_displacement_force_from_dict(
         location_3d, omega_value, material_parameters
     )
 
@@ -84,7 +84,7 @@ def test_compare_greens_displacement(material_parameters, omega_value, location_
     fortran_greens = _cosserat_core_wrapper.greens_displacement_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = cosserat_3d.greens_displacement_force(
+    python_greens = cosserat.greens_displacement_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 
@@ -101,7 +101,7 @@ def test_compare_greens_rotation(material_parameters, omega_value, location_3d):
     fortran_greens_from_dict = _cosserat_core_wrapper.greens_rotation_force_from_dict(
         location_3d, omega_value, material_parameters
     )
-    python_greens_from_dict = cosserat_3d.greens_rotation_force_from_dict(
+    python_greens_from_dict = cosserat.greens_rotation_force_from_dict(
         location_3d, omega_value, material_parameters
     )
 
@@ -122,7 +122,7 @@ def test_compare_greens_rotation(material_parameters, omega_value, location_3d):
     fortran_greens = _cosserat_core_wrapper.greens_rotation_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = cosserat_3d.greens_rotation_force(
+    python_greens = cosserat.greens_rotation_force(
         location_3d, omega_value, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 
@@ -147,7 +147,7 @@ def test_compare_greens_displacement_static(material_parameters, location_3d):
     fortran_greens = _cosserat_core_wrapper.greens_displacement_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = cosserat_3d.greens_displacement_force_static(
+    python_greens = cosserat.greens_displacement_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 
@@ -172,7 +172,7 @@ def test_compare_greens_rotation_static(material_parameters, location_3d):
     fortran_greens = _cosserat_core_wrapper.greens_rotation_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    python_greens = cosserat_3d.greens_rotation_force_static(
+    python_greens = cosserat.greens_rotation_force_static(
         location_3d, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
 

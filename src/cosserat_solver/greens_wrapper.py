@@ -17,8 +17,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 try:
-    import cosserat_solver.dim3._cosserat_core_wrapper as cosserat_3d_wrapper
-    import cosserat_solver.dim3._elastic_core_wrapper as elastic_3d_wrapper
+    import cosserat_solver.dim3._cosserat_core_wrapper as cosserat_wrapper
+    import cosserat_solver.dim3._elastic_core_wrapper as elastic_wrapper
     from cosserat_solver.dim2._integrator_core_wrapper import (
         HAS_FORTRAN,
         IntegratorFortran,
@@ -31,8 +31,8 @@ except ImportError:
         from cosserat_solver.dim2._integrator_core_wrapper import IntegratorFortran
     warnings.warn("Fortran backend not available, using Python fallback", stacklevel=2)
 
-import cosserat_solver.dim3.cosserat_3d as cosserat_3d
-import cosserat_solver.dim3.elastic_3d as elastic_3d
+import cosserat_solver.dim3.cosserat as cosserat
+import cosserat_solver.dim3.elastic as elastic
 from cosserat_solver import consts
 from cosserat_solver.dim2.integrator import Integrator
 from cosserat_solver.source import SourceSpectrum
@@ -158,7 +158,7 @@ def evaluate_greens_fortran(
             force_no_openmp=force_no_openmp,
         )
     if dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
-        # For 3D elastic, use the elastic_3d_wrapper
+        # For 3D elastic, use the elastic_wrapper
         rho = material_params["rho"]
         lam = material_params["lam"]
         mu = material_params["mu"]
@@ -168,7 +168,7 @@ def evaluate_greens_fortran(
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        return elastic_3d_wrapper.greens_mixed_force_vectorized(
+        return elastic_wrapper.greens_mixed_force_vectorized(
             x,
             omega_array,
             rho,
@@ -184,7 +184,7 @@ def evaluate_greens_fortran(
         )  # shape (n_omega, 6, 6)
 
     if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
-        # For 3D Cosserat, use the cosserat_3d_wrapper
+        # For 3D Cosserat, use the cosserat_wrapper
         rho = material_params["rho"]
         lam = material_params["lam"]
         mu = material_params["mu"]
@@ -199,7 +199,7 @@ def evaluate_greens_fortran(
             err = "Spatial location x must have shape (3,) for dimension 3."
             raise ValueError(err)
 
-        return cosserat_3d_wrapper.greens_mixed_force_vectorized(
+        return cosserat_wrapper.greens_mixed_force_vectorized(
             x,
             omega_array,
             rho,
@@ -386,7 +386,7 @@ def get_greens_callback(
                     stacklevel=2,
                 )
         elif dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
-            # For 3D elastic, use the elastic_3d_wrapper
+            # For 3D elastic, use the elastic_wrapper
             rho = material_params["rho"]
             lam = material_params["lam"]
             mu = material_params["mu"]
@@ -411,7 +411,7 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                G_omega = elastic_3d_wrapper.greens_mixed_force_vectorized(
+                G_omega = elastic_wrapper.greens_mixed_force_vectorized(
                     x,
                     omega_array,
                     rho,
@@ -437,7 +437,7 @@ def get_greens_callback(
 
             return fortran_callback
         elif dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
-            # For 3D Cosserat, use the cosserat_3d_wrapper
+            # For 3D Cosserat, use the cosserat_wrapper
             rho = material_params["rho"]
             lam = material_params["lam"]
             mu = material_params["mu"]
@@ -467,7 +467,7 @@ def get_greens_callback(
                 else:
                     squeeze_output = False
 
-                G_omega = cosserat_3d_wrapper.greens_mixed_force_vectorized(
+                G_omega = cosserat_wrapper.greens_mixed_force_vectorized(
                     x,
                     omega_array,
                     rho,
@@ -573,7 +573,7 @@ def get_greens_callback(
                 raise ValueError(err)
 
             # Evaluate Green's function
-            G_omega = elastic_3d.greens_mixed_force(
+            G_omega = elastic.greens_mixed_force(
                 x, omega, rho, lam, mu, 0, 1, 0, 0, 0
             )  # dummy values
 
@@ -621,11 +621,11 @@ def get_greens_callback(
 
             # Evaluate Green's function
             if material_type == "elastic":
-                G_omega = elastic_3d.greens_mixed_force(
+                G_omega = elastic.greens_mixed_force(
                     x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
                 )
             else:
-                G_omega = cosserat_3d.greens_mixed_force(
+                G_omega = cosserat.greens_mixed_force(
                     x, omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
                 )
 

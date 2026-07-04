@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 
-import cosserat_solver.dim3.dispersion_3d as dispersion_3d
+import cosserat_solver.dim3.dispersion as dispersion
 
 
 def greens_mixed_force_from_dict(
@@ -204,16 +204,16 @@ def greens_displacement_force(
         )
 
     # Compute squared velocities and cutoff frequency
-    _, c2_sq, _, c4_sq = dispersion_3d.all_c_squared(
+    _, c2_sq, _, c4_sq = dispersion.all_c_squared(
         rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    w0_sq = dispersion_3d.w0_squared(nu, J)
+    w0_sq = dispersion.w0_squared(nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
-    k1_sq, k2_sq, _, k4_sq = dispersion_3d.all_k_squared(
+    k1_sq, k2_sq, _, k4_sq = dispersion.all_k_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    k1, k2, _, k4 = dispersion_3d.all_k(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    k1, k2, _, k4 = dispersion.all_k(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
     # define helper values
     A1 = 1 / (k2_sq - k1_sq) / (k4_sq - k1_sq)
@@ -470,16 +470,16 @@ def greens_rotation_force(
         return greens_rotation_force_static(x, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
     # Compute squared velocities and cutoff frequency
-    _, c2_sq, c3_sq, _ = dispersion_3d.all_c_squared(
+    _, c2_sq, c3_sq, _ = dispersion.all_c_squared(
         rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    w0_sq = dispersion_3d.w0_squared(nu, J)
+    w0_sq = dispersion.w0_squared(nu, J)
 
     # compute wavenumbers k1, k2, k3, k4 from the dispersion relation
-    _, k2_sq, k3_sq, k4_sq = dispersion_3d.all_k_squared(
+    _, k2_sq, k3_sq, k4_sq = dispersion.all_k_squared(
         omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c
     )
-    _, k2, k3, k4 = dispersion_3d.all_k(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+    _, k2, k3, k4 = dispersion.all_k(omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
 
     # define helper values
     B2 = 1 / (k3_sq - k2_sq) / (k4_sq - k2_sq)
