@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from cosserat_solver import dispersion_core_2d
+    from cosserat_solver.dim2 import dispersion_core_2d
 
     HAS_FORTRAN = True
 except ImportError:

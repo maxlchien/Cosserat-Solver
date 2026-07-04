@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 try:
-    from cosserat_solver import elastic_core_3d
+    from cosserat_solver.dim3 import elastic_core_3d
 
     HAS_FORTRAN = True
 except ImportError:

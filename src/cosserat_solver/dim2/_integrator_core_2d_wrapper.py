@@ -11,7 +11,7 @@ import numpy as np
 from scipy import LowLevelCallable
 
 try:
-    from cosserat_solver import integrator_core_2d
+    from cosserat_solver.dim2 import integrator_core_2d
 
     HAS_FORTRAN = True
 except ImportError:
