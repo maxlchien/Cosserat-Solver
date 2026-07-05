@@ -132,6 +132,7 @@ sources:
 simulation_params:
   dt: 0.01
   N: 5000
+  # t0: 0.0  # For best results, do not specify t0 at all, and let the solver automatically set it to match SPECFEM source timings
   refinement_factor: 1
   extension_factor: 8
 
