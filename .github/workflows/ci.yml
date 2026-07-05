@@ -67,4 +67,4 @@ jobs:
       - name: Install and run displacement tests
         run: |
           uv sync --group nox
-          uv run nox -s displacement_tests -- -n auto
+          uv run nox -s displacement_tests -- 4 -n auto
