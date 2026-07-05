@@ -7,7 +7,7 @@ f_hat(omega) = int f(t) exp(+i omega t) dt
 then cont_ifft(f_hat) provided in this module returns time, signal, where
 signal = f(time)
 
-The time array is specified in a dict ft_params, which contains:
+The time array is specified in a dict simulation_params, which contains:
 - 'N' : int            # number of time samples returned
 - 'dt' : float         # time spacing (seconds)
 - 't0' : float = 0.0, optional   # time-shift applied to result
@@ -31,7 +31,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 
 
-def _omega_array(ft_params: dict) -> np.ndarray:
+def _omega_array(simulation_params: dict) -> np.ndarray:
     """
     Generate the angular frequency array for evaluating the continuous Fourier transform.
 
@@ -40,7 +40,7 @@ def _omega_array(ft_params: dict) -> np.ndarray:
 
     Parameters
     ----------
-    ft_params : dict
+    simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples
         - 'dt': float, time spacing between samples
@@ -60,9 +60,9 @@ def _omega_array(ft_params: dict) -> np.ndarray:
     """
 
     # get number of dt's in the window
-    N = len(_oversampled_time_array(ft_params))
-    dt = ft_params["dt"]
-    refinement_factor = ft_params.get("refinement_factor", 1)
+    N = len(_oversampled_time_array(simulation_params))
+    dt = simulation_params["dt"]
+    refinement_factor = simulation_params.get("refinement_factor", 1)
     dt_refined = dt / refinement_factor
 
     freqs = np.fft.fftfreq(N, dt_refined)
@@ -70,7 +70,7 @@ def _omega_array(ft_params: dict) -> np.ndarray:
     return 2 * np.pi * freqs  # convert to rad / sec
 
 
-def _oversampled_time_array(ft_params: dict) -> np.ndarray:
+def _oversampled_time_array(simulation_params: dict) -> np.ndarray:
     """
     Generate the oversampled time array used for intermediate calculations.
 
@@ -81,7 +81,7 @@ def _oversampled_time_array(ft_params: dict) -> np.ndarray:
 
     Parameters
     ----------
-    ft_params : dict
+    simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples
         - 'dt': float, time spacing between samples
@@ -100,19 +100,19 @@ def _oversampled_time_array(ft_params: dict) -> np.ndarray:
         Spans the window [window_start, window_start + dt_refined, ..., window_start + (N_oversample-1)*dt_refined]
         where dt_refined = dt / refinement_factor and window spans [t0, t0 + N*dt*extension_factor]
     """
-    window = ft_params.get("support_window")
-    dt = ft_params["dt"]
-    N = ft_params["N"]
-    extension_factor = ft_params.get("extension_factor", 1)
+    window = simulation_params.get("support_window")
+    dt = simulation_params["dt"]
+    N = simulation_params["N"]
+    extension_factor = simulation_params.get("extension_factor", 1)
 
     # Get refinement factor, defaulting to 1
-    refinement_factor = ft_params.get("refinement_factor", 1)
+    refinement_factor = simulation_params.get("refinement_factor", 1)
 
     # The refined time step
     dt_refined = dt / refinement_factor
 
     # The window spans [t0, t0 + N*dt*extension_factor]
-    t0 = ft_params.get("t0", 0.0)
+    t0 = simulation_params.get("t0", 0.0)
     window_start = t0
     window_end = t0 + N * dt * extension_factor
 
@@ -153,13 +153,13 @@ def downsample_signal(expanded_time, downsampled_time, expanded_signal) -> np.nd
     return interpolator(downsampled_time)
 
 
-def _time_array(ft_params: dict) -> np.ndarray:
+def _time_array(simulation_params: dict) -> np.ndarray:
     """
     Generate the time array corresponding to the output trace.
 
     Parameters
     ----------
-    ft_params : dict
+    simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples
         - 'dt': float, time spacing between samples
@@ -172,16 +172,16 @@ def _time_array(ft_params: dict) -> np.ndarray:
         Shape: (N,)
         [t0, t0 + dt, t0 + 2*dt, ..., t0 + (N-1)*dt]
     """
-    N = ft_params["N"]
-    dt = ft_params["dt"]
+    N = simulation_params["N"]
+    dt = simulation_params["dt"]
 
     # the forward window 0, dt, 2*dt, ..., (N-1)*dt, without shifting
     t = np.arange(N) * dt
 
-    return t + ft_params.get("t0", 0.0)
+    return t + simulation_params.get("t0", 0.0)
 
 
-def cont_irfft(func, ft_params: dict) -> tuple[np.ndarray, np.ndarray]:
+def cont_irfft(func, simulation_params: dict) -> tuple[np.ndarray, np.ndarray]:
     """
     NOTE: currently not implemented. Use cont_ifft and take the real part instead.
     Compute inverse Fourier transform of a continuous frequency-domain function.
@@ -196,7 +196,7 @@ def cont_irfft(func, ft_params: dict) -> tuple[np.ndarray, np.ndarray]:
         Function with signature func(omega: float) -> float
         Returns the continuous Fourier transform at angular frequency omega.
         Should be conjugate symmetric (func(-ω) = conj(func(ω))) for real signals.
-    ft_params : dict
+    simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples in time domain
         - 'dt': float, time spacing between samples (seconds)
@@ -231,7 +231,7 @@ def cont_irfft(func, ft_params: dict) -> tuple[np.ndarray, np.ndarray]:
 
 def cont_ifft(
     f_hat: Callable[[float], complex] | Callable[[np.ndarray], np.ndarray],
-    ft_params: dict,
+    simulation_params: dict,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute inverse Fourier transform of a continuous frequency-domain function.
@@ -246,7 +246,7 @@ def cont_ifft(
         Function with signature f_hat(omega: float) -> complex or vectorized as f_hat(omega: np.ndarray) -> np.ndarray
         Returns the continuous Fourier transform at angular frequency omega.
         Should be conjugate symmetric (f_hat(-ω) = conj(f_hat(ω))) for real signals.
-    ft_params : dict
+    simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples in time domain
         - 'dt': float, time spacing between samples (seconds)
@@ -275,8 +275,8 @@ def cont_ifft(
     time-domain result is downsampled to the output time grid.
     """
 
-    expanded_time = _oversampled_time_array(ft_params)
-    omega_array = _omega_array(ft_params)
+    expanded_time = _oversampled_time_array(simulation_params)
+    omega_array = _omega_array(simulation_params)
 
     try:
         # vectorized
@@ -298,8 +298,8 @@ def cont_ifft(
     expanded_time_signal = np.fft.ifft(freq_samples_shifted, axis=0, norm="backward")
 
     # fix to account for conventions
-    refinement_factor = ft_params.get("refinement_factor", 1)
-    scale_factor = 1 / (ft_params["dt"] / refinement_factor)
+    refinement_factor = simulation_params.get("refinement_factor", 1)
+    scale_factor = 1 / (simulation_params["dt"] / refinement_factor)
     expanded_time_signal *= scale_factor
     expanded_time_signal = np.conj(
         expanded_time_signal
@@ -309,7 +309,7 @@ def cont_ifft(
 
     # extract forward time window
     final_signal = downsample_signal(
-        expanded_time, _time_array(ft_params), expanded_time_signal
+        expanded_time, _time_array(simulation_params), expanded_time_signal
     )
 
-    return _time_array(ft_params), final_signal
+    return _time_array(simulation_params), final_signal

@@ -1,0 +1,48 @@
+dimension: 3
+material_type: elastic
+backend: fortran
+
+material_params:
+  rho: 2300
+  lam: 7.682e9
+  mu: 5.175e9
+  nu: 1e-10
+  J: 1000
+  lam_c: 0
+  mu_c: 1
+  nu_c: 0
+
+sources:
+  - type: "Ricker"
+    location: [0.0, 0.0, 0.0]
+    f0: 0.15
+    factor: 1
+    tshift: 0.0
+    f: [0.0, 0.0, 1.0e14]
+    fc: [0.0, 0.0, 0.0]
+
+simulation_params:
+  dt: 0.01
+  N: 3750
+  refinement_factor: 2
+  extension_factor: 4
+
+receivers:
+  network: "DB" # optional, defaults to AA
+  receiver_list:
+  - location: [10000, 10000, 10000]
+    name: "X60"
+  - location: [15000, 15000, 15000]
+    name: "X65"
+  - location: [20000, 20000, 20000]
+    name: "X70"
+  - location: [25000, 25000, 25000]
+    name: "X75"
+  - location: [30000, 30000, 30000]
+    name: "X80"
+  - location: [35000, 35000, 35000]
+    name: "X85"
+  - location: [40000, 40000, 40000]
+    name: "X90"
+  - location: [45000, 45000, 45000]
+    name: "X95"

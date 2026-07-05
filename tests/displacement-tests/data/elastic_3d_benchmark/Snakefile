@@ -1,0 +1,61 @@
+
+
+rule all:
+    input:
+        summary_chart="OUTPUT_FILES/analysis/comparison_summary.txt",
+        plots=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement"]), # this can be edited to remove channels
+        traces=expand(
+            "OUTPUT_FILES/{network_name}.{station_name}.S3.{component}.{extension}",
+            station_name=["X60", "X65", "X70", "X75", "X80", "X85", "X90", "X95"],
+            network_name=["DB"],
+            component=["HXX", "HXY", "HXZ"],
+            extension=["semd"],
+        ),
+    localrule: True
+
+
+rule run_solver:
+    input:
+        params="params.yaml",
+    output:
+        traces=rules.all.input.traces,
+    localrule: True
+    threads: workflow.cores # solving is the main step so take all cores available
+    shell:
+        """
+            uv run cosserat-solver --yaml {input.params} --o OUTPUT_FILES
+        """
+
+
+rule run_analysis:
+    input:
+        rules.run_solver.output.traces,
+        "compare_traces.py",
+        "trace_list.csv",
+    output:
+        summary_plot=rules.all.input.summary_chart,
+    localrule: True
+    shell:
+        """
+            uv run compare_traces.py
+        """
+
+rule plot_seismograms:
+    input:
+        rules.run_solver.output.traces,
+        "plot_seismograms.py",
+        "trace_list.csv",
+    output:
+        plots=rules.all.input.plots,
+    localrule: True
+    shell:
+        """
+            uv run plot_seismograms.py
+        """
+
+rule clean:
+    localrule: True
+    shell:
+        """
+            rm -rf OUTPUT_FILES
+        """

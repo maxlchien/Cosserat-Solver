@@ -16,7 +16,29 @@ def tests(session: nox.Session) -> None:
     session.install("--no-build-isolation", "--force-reinstall", "-e", ".")
 
     # session.install(".[test]")
-    session.run("pytest", *session.posargs)
+    session.run("pytest", "tests", *session.posargs)
+
+
+@nox_uv.session(uv_groups=["test"])
+def displacement_tests(session: nox.Session) -> None:
+    """
+    Run the displacement tests.
+
+    If a positional argument is provided, it will be used as the maximum number of cores to be used across all tests.
+    If no positional argument is provided, the default maximum number of cores will be 32.
+    """
+    session.install("--no-build-isolation", "--force-reinstall", "-e", ".")
+
+    # session.install(".[test]")
+    session.run(
+        "pytest",
+        "tests",
+        "--displacement-tests",
+        "--max-cores=" + str(session.posargs[0])
+        if session.posargs
+        else "--max-cores=32",
+        *session.posargs[1:] if len(session.posargs) > 1 else [],
+    )
 
 
 @nox_uv.session(uv_groups=["dev"])
