@@ -36,12 +36,16 @@ from loguru import logger
 import cosserat_solver.dim3.cosserat as cosserat
 import cosserat_solver.dim3.elastic as elastic
 from cosserat_solver import consts
+from cosserat_solver.consts import (
+    BACKEND_FORTRAN,
+    BACKEND_PYTHON,
+    DIMENSION_2D,
+    DIMENSION_3D,
+    MATERIAL_TYPE_COSSERAT,
+    MATERIAL_TYPE_ELASTIC,
+)
 from cosserat_solver.dim2.integrator import Integrator
 from cosserat_solver.source import SourceSpectrum
-
-# material type tags
-MATERIAL_TYPE_ELASTIC = 0
-MATERIAL_TYPE_COSSERAT = 1
 
 
 def get_material_tag(material_type: str) -> int:
@@ -54,14 +58,6 @@ def get_material_tag(material_type: str) -> int:
     logger.error(msg)
     raise ValueError(msg)
 
-
-# dimension tags
-DIMENSION_2D = 2
-DIMENSION_3D = 3
-
-# backend tags
-BACKEND_FORTRAN = 0
-BACKEND_PYTHON = 1
 
 SUPPORTED_COMBOS = {
     (DIMENSION_2D, BACKEND_FORTRAN, MATERIAL_TYPE_COSSERAT),

@@ -5,11 +5,11 @@ rule all:
         summary_chart="OUTPUT_FILES/analysis/comparison_summary.txt",
         plots=expand("OUTPUT_FILES/{channel}_plot.png", channel=["displacement"]), # this can be edited to remove channels
         traces=expand(
-            "OUTPUT_FILES/{network_name}.{station_name}.S2.{component}.{extension}",
-            station_name=["S0001", "S0002", "S0003", "S0004", "S0005" ,"S0005", "S0006", "S0007", "S0008"],
-            network_name=["AA"],
-            component=["BXX", "BXY", "BXZ"],
-            extension=["semr", "semd"],
+            "OUTPUT_FILES/{network_name}.{station_name}.S3.{component}.{extension}",
+            station_name=["X60", "X65", "X70", "X75", "X80", "X85", "X90", "X95"],
+            network_name=["DB"],
+            component=["HXX", "HXY", "HXZ"],
+            extension=["semd"],
         ),
     localrule: True
 
