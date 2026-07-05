@@ -11,6 +11,7 @@ from loguru import logger
 import cosserat_solver.read_yaml
 import cosserat_solver.ricker
 import cosserat_solver.trace_generator
+from cosserat_solver import consts
 from cosserat_solver.greens_wrapper import FORTRAN_AVAILABLE
 
 
@@ -25,9 +26,9 @@ def main() -> None:
   Use --use-python-backend to explicitly use Python (slower, higher precision).
         """,
     )
-    # add optional --yaml <filename> argument
+    # --yaml <filename> argument. can be optional later if we add specfem_config reading
     parser.add_argument(
-        "--yaml", type=str, required=False, help="Path to the YAML configuration file."
+        "--yaml", type=str, required=True, help="Path to the YAML configuration file."
     )
     parser.add_argument(
         "--o",
@@ -90,7 +91,7 @@ def main() -> None:
         logger.add(sys.stderr, format="{level} - {message}", level="WARNING")
         logger.add(logfile, format="{message}", level="INFO", mode="w")
 
-    logger.info("Starting Cosserat Solver CLI")
+    logger.info("Starting Cosserat Solver")
     logger.debug("Arguments: {args}", args=args)
     logger.info("Log file: {logfile}", logfile=logfile)
 
@@ -99,15 +100,145 @@ def main() -> None:
         logger.error("--force-use-openmp and --force-no-openmp are mutually exclusive.")
         sys.exit(1)
 
+    logger.info(f"Reading configuration from YAML file: {args.yaml}")
+    (
+        dim,
+        material_type,
+        backend_from_yaml,
+        material_params,
+        sources,
+        simulation_params,
+        digits_precision,
+        receivers,
+        full_yaml,
+    ) = cosserat_solver.read_yaml.read(args.yaml)
+    logger.info("Configuration read successfully from YAML file.")
+    logger.info("Parameters:")
+    logger.info("=" * 40)
+
+    if dim == consts.DIMENSION_2D:
+        logger.info("Dimension: 2D")
+    elif dim == consts.DIMENSION_3D:
+        logger.info("Dimension: 3D")
+    else:
+        logger.error("Invalid dimension: {dim}", dim=dim)
+        sys.exit(1)
+
+    if material_type == consts.MATERIAL_TYPE_COSSERAT:
+        logger.info("Material type: Cosserat")
+    elif material_type == consts.MATERIAL_TYPE_ELASTIC:
+        logger.info("Material type: Elastic")
+    else:
+        logger.error(
+            "Invalid material type: {material_type}", material_type=material_type
+        )
+        sys.exit(1)
+
+    backend = None
+    if args.use_python_backend:
+        backend_from_flag = consts.BACKEND_PYTHON
+    elif args.allow_python_backend:
+        backend_from_flag = consts.BACKEND_AUTO
+    else:
+        backend_from_flag = None  # No explicit backend flag provided
+    if (
+        "backend" in full_yaml
+    ):  # if backend is specified by the file and as a flag, prefer the flag
+        if backend_from_flag is not None and backend_from_flag != backend_from_yaml:
+            logger.warning(
+                "Backend specified in YAML ({backend_yaml}) and via command line flag ({backend_flag}) are different. Using command line flag.",
+                backend_yaml=backend_from_yaml,
+                backend_flag=backend_from_flag,
+            )
+            backend = backend_from_flag
+        else:
+            backend = backend_from_yaml
+    else:
+        if backend_from_flag is not None:
+            backend = backend_from_flag
+        else:
+            backend = backend_from_yaml  # if no backend is specified in the yaml, this will be BACKEND_FORTRAN
+    if backend == consts.BACKEND_FORTRAN:
+        logger.info("Backend: Fortran")
+    elif backend == consts.BACKEND_PYTHON:
+        logger.info("Backend: Python")
+    elif backend == consts.BACKEND_AUTO:
+        logger.info("Backend: Auto (Fortran if available, otherwise Python)")
+    else:
+        logger.error("Invalid backend: {backend}", backend=backend)
+        sys.exit(1)
+
+    # we intentionally use .get() with no default value since all of these should be present
+    logger.info("Material parameters:")
+    logger.info("   Rho: {rho}", rho=material_params.get("rho"))
+    logger.info("   Lambda: {lam}", lam=material_params.get("lam"))
+    logger.info("   Mu: {mu}", mu=material_params.get("mu"))
+    if material_type == consts.MATERIAL_TYPE_COSSERAT:
+        logger.info("   Nu: {nu}", nu=material_params.get("nu"))
+        logger.info("   J: {J}", J=material_params.get("J"))
+        logger.info("   Lambda (coupled): {lam_c}", lam_c=material_params.get("lam_c"))
+        logger.info("   Mu (coupled): {mu_c}", mu_c=material_params.get("mu_c"))
+        logger.info("   Nu (coupled): {nu_c}", nu_c=material_params.get("nu_c"))
+
+    logger.info("Sources:")
+    for i, source in enumerate(sources):
+        logger.info("   Source {n}:", n=i + 1)
+        logger.info("      Location: {location}", location=source.get("location"))
+        source_type = source.get("type")
+        if source_type == consts.SOURCE_TYPE_RICKER:
+            logger.info("      Type: Ricker")
+        else:
+            err = f"Invalid source type: {source_type}. Must be 'Ricker'."
+            logger.error(err)
+            raise ValueError(err)
+        logger.info("      Type: {type}", type=source.get("type"))
+        logger.info(
+            "      Central Frequency f0 (Hz): {f0}",
+            f0=source.get("f0"),
+        )
+        logger.info(
+            "      Factor: {factor}",
+            factor=source.get("factor"),
+        )
+        logger.info(
+            "      Tshift: {tshift}",
+            tshift=source.get("tshift"),
+        )
+        logger.info("      f: {f}", f=source.get("f"))
+        logger.info("      fc: {fc}", fc=source.get("fc"))
+        if dim == consts.DIMENSION_2D:
+            logger.info("      Angle: {angle}", angle=source.get("angle"))
+
+    logger.info(
+        "Digits precision: {digits_precision} (only relevant for 2D Python backend)",
+        digits_precision=digits_precision,
+    )
+
+    logger.info("Receivers:")
+    logger.info("   Network: {network}", network=receivers.get("network"))
+    for i, receiver in enumerate(receivers.get("receiver_list")):
+        logger.info("   Receiver {i}: {name}", i=i + 1, name=receiver.get("name"))
+        logger.info("      Location: {location}", location=receiver.get("location"))
+        logger.info("      Seismograms to output:")
+        for seismogram_type in receiver.get("seismogram_type"):
+            if seismogram_type == consts.SEISMOGRAM_TYPE_DISPLACEMENT:
+                logger.info("         - Displacement")
+            elif seismogram_type == consts.SEISMOGRAM_TYPE_ROTATION:
+                logger.info("         - Rotation")
+            else:
+                err = f"Invalid seismogram type: {seismogram_type}. Must be 0 (Displacement) or 1 (Rotation)."
+                logger.error(err)
+                raise ValueError(err)
+
     # Handle backend selection
     use_fortran = True
-    if args.use_python_backend:
+    if backend == consts.BACKEND_PYTHON:
         # Explicitly requested Python backend
         use_fortran = False
         logger.info("Using Python backend (as requested)")
     elif not FORTRAN_AVAILABLE:
         # Fortran not available
-        if args.allow_python_backend:
+        if backend == consts.BACKEND_AUTO:
             use_fortran = False
             warnings.warn(
                 "Fortran backend not available. Falling back to Python backend. "
@@ -128,107 +259,73 @@ def main() -> None:
         # Fortran available and will be used
         logger.info("Using Fortran backend")
 
-    if args.yaml:
-        logger.info(f"Reading configuration from YAML file: {args.yaml}")
-        (
-            dim,
-            material_params,
-            source_params,
-            ft_params,
-            digits_precision,
-            seismogram_locations,
-        ) = cosserat_solver.read_yaml.read(args.yaml)
+    source_objects = []
+    earliest_start_time = float("inf")
+    for source in sources:
+        if source.get("type") == consts.SOURCE_TYPE_RICKER:
+            if dim == consts.DIMENSION_2D:
+                obj = cosserat_solver.ricker.Ricker2D(source)
+            elif dim == consts.DIMENSION_3D:
+                obj = cosserat_solver.ricker.Ricker3D(source)
+            else:
+                err = f"Invalid dimension: {dim}. Must be 2 or 3."
+                logger.error(err)
+                raise ValueError(err)
+        if obj.start_time < earliest_start_time:
+            earliest_start_time = obj.start_time
+        source_objects.append(obj)
+    if len(source_objects) == 0:
+        err = (
+            "No valid sources found. At least one source of type 'Ricker' is required."
+        )
+        logger.error(err)
+        raise ValueError(err)
 
-        logger.info("Dimension: {dim}", dim=dim)
-
+        logger.info("General simulation parameters:")
+    logger.info("   dt: {dt}", dt=simulation_params.get("dt"))
+    logger.info("   N: {N}", N=simulation_params.get("N"))
+    if simulation_params.get("t0") is None:
         logger.info(
-            "Material type: {material_type}",
-            material_type=material_params.get("material_type", "N/A"),
+            "   t0: None (will be set to the earliest source start time: {earliest_start_time})",
+            earliest_start_time=earliest_start_time,
         )
-
-        logger.info("Material parameters:")
-        logger.info("   Rho: {rho}", rho=material_params.get("rho", "N/A"))
-        logger.info("   Lambda: {lam}", lam=material_params.get("lam", "N/A"))
-        logger.info("   Mu: {mu}", mu=material_params.get("mu", "N/A"))
-        logger.info("   Nu: {nu}", nu=material_params.get("nu", "N/A"))
-        logger.info("   J: {J}", J=material_params.get("J", "N/A"))
-        logger.info(
-            "   Lambda (coupled): {lam_c}", lam_c=material_params.get("lam_c", "N/A")
-        )
-        logger.info("   Mu (coupled): {mu_c}", mu_c=material_params.get("mu_c", "N/A"))
-        logger.info("   Nu (coupled): {nu_c}", nu_c=material_params.get("nu_c", "N/A"))
-
-        logger.info("Source parameters:")
-        logger.info(
-            "   Type: {type}",
-            type=source_params.get("type", "N/A"),
-        )
-        logger.info(
-            "   Central Frequency f0 (Hz): {f0}",
-            f0=source_params.get("f0", "N/A"),
-        )
-        logger.info(
-            "   Factor: {factor}",
-            factor=source_params.get("factor", "N/A"),
-        )
-        logger.info(
-            "   Tshift: {tshift}",
-            tshift=source_params.get("tshift", "N/A"),
-        )
-        logger.info("   f: {f}", f=source_params.get("f", "N/A"))
-        logger.info("   fc: {fc}", fc=source_params.get("fc", "N/A"))
-        logger.info("   Angle: {angle}", angle=source_params.get("angle", "N/A"))
-
-        logger.info("Fourier parameters:")
-        logger.info("   dt: {dt}", dt=ft_params.get("dt", "N/A"))
-        logger.info("   N: {N}", N=ft_params.get("N", "N/A"))
-        logger.info(
-            "   Refinement factor: {extension_factor}",
-            extension_factor=ft_params.get("extension_factor", "N/A"),
-        )
-        logger.info(
-            "   Extension factor: {extension_factor}",
-            extension_factor=ft_params.get("extension_factor", "N/A"),
-        )
-
-        logger.info(
-            "Digits precision: {digits_precision} (only relevant for 2D Python backend)",
-            digits_precision=digits_precision,
-        )
-
-        logger.info("Seismogram locations:")
-        for location in seismogram_locations:
-            logger.info("   {location}", location=location)
-        logger.info("Finished reading configuration")
-
-    if source_params.get("type") == "Ricker":
-        if dim == 2:
-            source = cosserat_solver.ricker.Ricker2D(source_params)
-        elif dim == 3:
-            source = cosserat_solver.ricker.Ricker3D(source_params)
+        simulation_params["t0"] = earliest_start_time
+    else:
+        logger.info("   t0: {t0}", t0=simulation_params.get("t0"))
+    logger.info(
+        "   Refinement factor: {refinement_factor}",
+        refinement_factor=simulation_params.get("refinement_factor"),
+    )
+    logger.info(
+        "   Extension factor: {extension_factor}",
+        extension_factor=simulation_params.get("extension_factor"),
+    )
 
     logger.info("=" * 40)
     logger.info("Beginning trace generation step at {time}", time=datetime.now())
     logger.info("=" * 40)
     trace_generation_start = time.perf_counter()
 
-    for i, location in enumerate(seismogram_locations):
+    for i, receiver in enumerate(receivers.get("receiver_list")):
         logger.debug("=" * 40)
         logger.info(
-            "Generating traces for seismogram {i} at location {location}",
-            i=i + 1,
-            location=location,
+            "Generating traces for seismogram {name} at location {location} ({n} of {total})",
+            name=receiver.get("name"),
+            location=receiver.get("location"),
+            n=i + 1,
+            total=len(receivers.get("receiver_list")),
         )
         logger.debug("=" * 40)
         cosserat_solver.trace_generator.generate_trace(
-            location,
+            receiver,
             dim,
+            material_type,
             material_params,
-            source,
-            ft_params,
+            source_objects,
+            simulation_params,
             digits_precision,
             output_dir=args.o if args.o else "OUTPUT_FILES",
-            trace_prefix=f"AA.S{str(i + 1).zfill(4)}.S2",
+            trace_prefix=f"{receivers.get('network')}.{receiver.get('name')}.S{2 if dim == consts.DIMENSION_2D else 3}",
             save_to_file=True,
             use_fortran=use_fortran,
             force_use_openmp=args.force_use_openmp,
@@ -238,7 +335,7 @@ def main() -> None:
     logger.info("Finished trace generation step at {time}", time=datetime.now())
     logger.info(
         "Generated {n} traces in {duration:.2f} seconds",
-        n=len(seismogram_locations),
+        n=len(receivers.get("receiver_list")),
         duration=time.perf_counter() - trace_generation_start,
     )
     logger.info("=" * 40)

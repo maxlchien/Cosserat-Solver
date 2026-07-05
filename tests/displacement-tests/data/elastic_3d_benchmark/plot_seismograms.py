@@ -5,8 +5,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-import yaml
-from velocities import load_group_velocities_from_params
 
 
 def read_seismogram(filename):
@@ -37,15 +35,6 @@ def load_trace_pairs_from_csv(trace_list_path):
                 raise ValueError(msg)
             trace_pairs.append((parts[0], parts[1]))
     return trace_pairs
-
-
-def read_source_timing(filename):
-    """Read source timing values from the benchmark params file."""
-    with open(filename, encoding="utf-8") as handle:
-        params = yaml.safe_load(handle)
-
-    source_params = params["source_params"]
-    return float(source_params["f0"]), float(source_params.get("tshift", 0.0))
 
 
 def parse_args():
@@ -104,7 +93,6 @@ def main():
     reference_dir = resolve_path(args.reference_dir, base_dir / "reference_traces")
     generated_dir = resolve_path(args.generated_dir, base_dir / "OUTPUT_FILES")
     trace_list_path = resolve_path(args.trace_list, base_dir / "trace_list.csv")
-    params_path = resolve_path(args.params, base_dir / "params.yaml")
 
     channels_to_process = (
         ["displacement", "rotation"]
@@ -112,9 +100,6 @@ def main():
         else [args.channel]
     )
     trace_pairs = load_trace_pairs_from_csv(trace_list_path)
-
-    group_velocities = load_group_velocities_from_params(params_path)
-    source_f0, source_tshift = read_source_timing(params_path)
 
     for channel in channels_to_process:
         channel_extension = "semd" if channel == "displacement" else "semr"
@@ -224,14 +209,6 @@ def main():
             ax.grid(alpha=0.3)
             ax.legend(loc="upper right", fontsize=8)
 
-        fig.text(
-            0.02,
-            0.01,
-            f"Source f0={source_f0}, tshift={source_tshift}\nGroup velocities: {group_velocities}",
-            fontsize=8,
-            ha="left",
-            va="bottom",
-        )
         fig.tight_layout(rect=[0, 0, 1, 0.97])
 
         if args.output:

@@ -22,6 +22,8 @@ class Ricker2D(SourceSpectrum):
             A scaling factor for the amplitude.
         start_time (float):
             The start time for the trace. Defaults to -1.2 / f0.
+        location (np.ndarray):
+            The source location vector. Defaults to the origin.
     """
 
     def __init__(self, ricker_params: dict):
@@ -33,6 +35,11 @@ class Ricker2D(SourceSpectrum):
         self.factor = float(ricker_params.get("factor", 1.0))
 
         self.start_time = -1.2 / self.f0 + float(ricker_params.get("tshift", 0.0))
+
+        self.loc = ricker_params.get("location", np.array([0.0, 0.0]))
+        if not isinstance(self.loc, np.ndarray) or self.loc.shape != (2,):
+            msg = "Location must be a numpy array of shape (2,) for 2D sources."
+            raise ValueError(msg)
 
     def spectrum(self, omega: float) -> complex:
         """
@@ -73,6 +80,16 @@ class Ricker2D(SourceSpectrum):
             / (2.0 * np.pi ** (5 / 2) * self.f0**3)
             * np.exp(-(omega_array**2) / (4.0 * np.pi**2 * self.f0**2))
         )
+
+    def location(self) -> np.ndarray:
+        """
+        Get the source location vector.
+
+        Returns:
+        np.ndarray
+            A 2-element array representing the source location.
+        """
+        return self.loc
 
     def direction(self) -> np.ndarray:
         """
@@ -118,6 +135,9 @@ class Ricker3D(SourceSpectrum):
             [fc_x, fc_y, fc_z] for the 3D case.
         start_time (float):
             The start time for the trace. Defaults to -1.2 / f0.
+
+        location (np.ndarray):
+            The source location vector. Defaults to the origin.
     """
 
     def __init__(self, ricker_params: dict):
@@ -132,6 +152,11 @@ class Ricker3D(SourceSpectrum):
         )
 
         self.start_time = -1.2 / self.f0 + float(ricker_params.get("tshift", 0.0))
+
+        self.loc = np.array(ricker_params.get("location", [0.0, 0.0, 0.0]))
+        if not isinstance(self.loc, np.ndarray) or self.loc.shape != (3,):
+            msg = "Location must be a numpy array of shape (3,) for 3D sources."
+            raise ValueError(msg)
 
     def spectrum(self, omega: float) -> complex:
         """
@@ -172,6 +197,16 @@ class Ricker3D(SourceSpectrum):
             / (2.0 * np.pi ** (5 / 2) * self.f0**3)
             * np.exp(-(omega_array**2) / (4.0 * np.pi**2 * self.f0**2))
         )
+
+    def location(self) -> np.ndarray:
+        """
+        Get the source location vector.
+
+        Returns:
+        np.ndarray
+            A 3-element array representing the source location.
+        """
+        return self.loc
 
     def direction(self) -> np.ndarray:
         """

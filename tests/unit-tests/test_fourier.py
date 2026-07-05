@@ -205,7 +205,7 @@ def f_pair(request):
         ),
     ]
 )
-def ft_params(request):
+def simulation_params(request):
     """Fixture providing various FT parameter configurations for basic tests."""
     return request.param
 
@@ -235,12 +235,12 @@ def ft_params(request):
         ),
     ]
 )
-def ft_params_fine(request):
+def simulation_params_fine(request):
     """Fixture providing FT parameters with fine resolution for accurate function recovery."""
     return request.param
 
 
-def test_cont_ifft_output_shape(ft_params):
+def test_cont_ifft_output_shape(simulation_params):
     """
     Test that the signal shape is correct
     """
@@ -252,8 +252,8 @@ def test_cont_ifft_output_shape(ft_params):
         return 0
 
     # function doesn't matter, we just need to check the shape
-    _, signal = cont_ifft(fhat, ft_params)
-    requested_length = ft_params["N"]
+    _, signal = cont_ifft(fhat, simulation_params)
+    requested_length = simulation_params["N"]
     desired_shape = (requested_length,)
     actual_shape = signal.shape
 
@@ -268,29 +268,29 @@ def test_cont_ifft_output_shape(ft_params):
     assert desired_shape == actual_shape
 
 
-def test_cont_ifft_time_spacing(ft_params):
+def test_cont_ifft_time_spacing(simulation_params):
     """Test that the time spacing is correct"""
 
     def fhat(_):
         return np.zeros((1,))
 
-    time, _ = cont_ifft(fhat, ft_params)
-    dt = ft_params["dt"]
-    expected_time = np.arange(ft_params["N"]) * dt
+    time, _ = cont_ifft(fhat, simulation_params)
+    dt = simulation_params["dt"]
+    expected_time = np.arange(simulation_params["N"]) * dt
     np.testing.assert_allclose(time, expected_time, rtol=1e-10)
 
 
-def test_cont_ifft_singleton(f_pair, ft_params_fine):
+def test_cont_ifft_singleton(f_pair, simulation_params_fine):
     """Test that cont_irfft recovers the original time-domain signal."""
     f, fhat, support_window = f_pair
     # Compute via inverse transform
-    ft_params_fine.update({"support_window": support_window})
-    _, result = cont_ifft(fhat, ft_params_fine)
+    simulation_params_fine.update({"support_window": support_window})
+    _, result = cont_ifft(fhat, simulation_params_fine)
 
     try:
         expected = f(
-            ft_params_fine.get("t0", 0.0)
-            + np.arange(ft_params_fine["N"]) * ft_params_fine["dt"]
+            simulation_params_fine.get("t0", 0.0)
+            + np.arange(simulation_params_fine["N"]) * simulation_params_fine["dt"]
         )
     except Exception:
         # nonvectorized
@@ -298,8 +298,9 @@ def test_cont_ifft_singleton(f_pair, ft_params_fine):
             [
                 f(t)
                 for t in (
-                    ft_params_fine.get("t0", 0.0)
-                    + np.arange(ft_params_fine["N"]) * ft_params_fine["dt"]
+                    simulation_params_fine.get("t0", 0.0)
+                    + np.arange(simulation_params_fine["N"])
+                    * simulation_params_fine["dt"]
                 )
             ]
         )

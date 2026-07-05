@@ -47,7 +47,7 @@ Various fit metrics are detailed in `OUTPUT_FILES/analysis/comparison_summary.tx
 As an exercise, open the file `params.yaml` and change the following block:
 
 ```
-ft_params:
+simulation_params:
   dt: 0.01
   N: 5000
   refinement_factor: 1
@@ -55,7 +55,7 @@ ft_params:
 ```
 to
 ```
-ft_params:
+simulation_params:
   dt: 0.01
   N: 5000
   refinement_factor: 1
@@ -68,13 +68,16 @@ The resulting fit metrics will display increased accuracy, particularly in the r
 
 #### Parameter file `--yaml <path/to/params.yaml>`
 Path to the input parameter file, formatted according to [Parameter Description](parameter-description).
+
 #### Output directory `--o <directory-name>`
 The directory where output files and logs are generated.
 Defaults to `OUTPUT_FILES`.
-#### Backend control `allow-python-backend`, `--use-python-backend`
+<a id="backend-control"></a>
+#### Backend control `--allow-python-backend`, `--use-python-backend`
 For some medium-dimension combinations, the core computation steps are implemented in both Fortran and Python.
 The default behavior is to use the Fortran backend, and to error if it is not available.
 The flag `--allow-python-backend` allows for a fallback to the Python backend if Fortran is not available, and `--use-python-backend` forces the use of Python.
+This can also be specified in the parameter file, but the flag will override anything specified in the parameter file.
 For arbitrary precision compatible media, the Python backend must be used.
 
 | Medium | Dimension | Fortran Backend Available |
@@ -98,6 +101,61 @@ With `--debug`, DEBUG logging is printed to both.
 </details>
 
 ### Parameter Description
+
+<details>
+<summary> Sample `params.yaml` file </summary>
+
+```
+dimension: 3
+material_type: cosserat
+backend: fortran # defaults to fortran. either fortran, python, or auto (auto will choose fortran if available, otherwise python)
+
+material_params:
+  rho: 2300
+  lam: 7.682e9
+  mu: 5.175e9
+  nu: 1e2
+  J: 2300
+  lam_c: 6e9
+  mu_c: 2e9
+  nu_c: 0
+
+sources:
+  - type: Ricker
+    location: [0.0, 0.0, 0.0]
+    f0: 0.1
+    factor: 1
+    tshift: 0.0
+    f: [1.0e8, 2.0e8, 4.0e7]
+    fc: [2.0e11, 5.0e11, 1.0e12]
+
+simulation_params:
+  dt: 0.01
+  N: 5000
+  # t0: 0.0  # For best results, do not specify t0 at all, and let the solver automatically set it to match SPECFEM source timings
+  refinement_factor: 1
+  extension_factor: 8
+
+receivers:
+  network: "DB" # optional, defaults to AA
+  receiver_list:
+  - location: [0, 10000, 0]
+    name: "X55" # optional, defaults to S0001, S0002, etc.
+    seismogram_type: # defaults to both displacement and rotation for Cosserat, only displacement for elastic
+      - displacement
+      - rotation
+  - location: [10000, 0, 0]
+    name: "X60"
+  - location: [0, 0, 10000]
+    name: "X65"
+  - location: [10000, 10000, 10000]
+    name: "X70"
+  - location: [-10000, -10000, -10000]
+    name: "X75"
+```
+
+</details>
+
 <details>
 
 Parameters are specified using a YAML file with the following:
@@ -109,6 +167,12 @@ Default: `cosserat`.
 
 #### Dimension `dimension: <2 or 3>`
 An integer that is either 2 or 3.
+
+#### Backend `backend: fortran` or `backend: python` or `backend: auto`
+See the CLI flag section for more details.
+`fortran` and `python` force the respective backends to be used; `auto` defaults to Fortran but uses Python if unavailable.
+
+Default: Fortran
 
 #### Material parameters `material_params:`
 An object containing the following attributes:
@@ -127,17 +191,25 @@ An object containing the following attributes:
 |Coupled nu $\nu_c$|`nu_c: <float>`|
 </details>
 
-#### Source Parameters `source_params:`
+For elastic simulations, only `rho`, `lam`, `mu` must be specified.
+
+#### Source Parameters `sources:`
 Currently, only Ricker sources are supported.
 
-An object containing the following attributes:
+A list of source objects.
+Each source object should contain the following attributes:
+
+`type: <string>`: Specifies the source type. Currently the only option is "Ricker".
+
+Ricker sources may also specify the following optional attributes:
 <details>
 <summary> Source parameters </summary>
 
+
 |Syntax|Description|Default|Notes|
 |---|---|---|---|
-|`type: <string>`|Source type|N/A|The only option is `"Ricker"`|
-|`f0: <float>`|float (Hz)|Central frequency of the Ricker source|`25.0`|In Hz|
+|`location: list[float]`|The coordinates of the source, with length equal to dimension|Origin in 2D or 3D, resp.||
+|`f0: <float>`|Central frequency of the Ricker source|`25.0`|In Hz|
 |`factor: <float>`|Scaling factor<br>Globally scales the intensity of the source by the given factor|`1.0`||
 |2D:`f: <float>`<br>3D: `f: [<float>, <float>, <float>]`|In 2D: scales the displacement intensity only by the given factor<br>In 3D: Gives the source's direction vector for the displacement components (coordinates `x,y,z`).|2D: `1.0`<br>3D: `[1.0, 1.0, 1.0]`||
 |2D:`fc: <float>`<br>3D: `fc: [<float>, <float>, <float>]`|In 2D: scales the rotation intensity only by the given factor<br>In 3D: Gives the source's direction vector for the rotation components (coordinates `x,y,z`).|2D: `1.0`<br>3D: `[1.0, 1.0, 1.0]`|For elastic media, this value is not used and may be omitted.|
@@ -145,18 +217,20 @@ An object containing the following attributes:
 |`angle: <float>`|Rotates the source's direction vector by the specified angle from the x axis.|`0.0`|In degrees.<br>Uses the same convention as `specfem2d`.
 </details>
 
-#### Fourier Transform Parameters `ft_params:`
+#### General Simulation Parameters `simulation_params:`
 Controls the inverse Fourier transform logic.
-`dt`, `N`, and `start_time` control the time array for the generated trace.
+`dt`, `N`, and `t0` control the time array for the generated trace.
 If further accuracy is desired, `refinement_factor` and `extension_factor` can be used.
 Generally, `extension_factor` is much more useful for improving accuracy.
 This is because it mitigates wraparound errors, and also because it generally corresponds to better resolution of low frequencies, while `refinement_factor` gets better resolution of high frequencies, which tend to have less energy content.
 
 <details>
-<summary> Fourier Transform Parameters </summary>
+<summary> General Simulation Parameters </summary>
 
 #### Time array parameters `N: <int>`, `dt: <float>`, `t0: <float>`
 The final trace will be computed on a time array beginning at time $t_0$ and ending at time $t_0 + (N-1)*dt$, with length $N$ and increment $dt$.
+
+If $t_0$ is not specified then it is set to the earliest start time of the sources. For Ricker sources, the start time is $-1.2 / f_0$, with an additional adjustment for the `tshift` parameter.
 
 #### Accuracy parameters `refinement_factor: <int>`, `extension_factor: <int>`
 `refinement_factor` performs the computations on a finer intermediate array, then discards the extra values in the final trace.
@@ -165,15 +239,23 @@ The final trace will be computed on a time array beginning at time $t_0$ and end
 
 </details>
 
-#### Receiver stations `seismogram_locations:`
-A list of coordinate tuples of the same length as the dimension (either `x,y,z` or `x,z`).
+#### Receiver parameters `receivers:`
+An object containing the following attributes:
 
-e.g. in 3D:
+A SEED network name `network: <string>`, which serves as the prefix for seismogram files. Defaults to "AA".
+
+A list of receiver objects `receiver_list:`.
+A receiver object is specified as
 ```
-seismogram_locations:
-  - [<float>, <float>, <float>]
+- location: list[float]
+  name: <string>
+  seismogram_type:
+    - displacement
+    - rotation
 ```
-</details>
+Location is mandatory.
+Name is optional and defaults to S0001, S0002, etc., depending on the position of the station in the list.
+If no seismogram type is specified, then the default is both displacement and rotation for Cosserat materials, or just displacement for elastic.
 
 ## Background
 The goal of this project is to provide computations for wave propagation in the Cosserat medium similarly to [SPECFEMPP](https://github.com/PrincetonUniversity/SPECFEMPP).

@@ -42,12 +42,22 @@ class SourceSpectrum(ABC):
         ...
 
     @abstractmethod
+    def location(self) -> np.ndarray:
+        """
+        Get the source location vector.
+
+        Returns:
+            np.ndarray: A 2- or 3-element array representing the source location.
+        """
+        ...
+
+    @abstractmethod
     def direction(self) -> np.ndarray:
         """
         Get the source direction vector based on the specified angle.
 
         Returns:
-            np.ndarray: A 3-element array representing the source direction vector.
+            np.ndarray: A 3- or 6-element array representing the source direction vector.
         """
         ...
 
