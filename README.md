@@ -277,4 +277,3 @@ If no seismogram type is specified, then the default is both displacement and ro
 If OpenMP is available, the maximum number of threads can be controlled using the environment variable `OMP_NUM_THREADS`.
 When running this from a snakemake job, the `threads:` key sets the number of threads available to each rule.
 If `threads` is set to `workflow.cores`, the number provided can be controlled for each run by running `snakemake -c1`, `snakemake -c8`, etc.
-
