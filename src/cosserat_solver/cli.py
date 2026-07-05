@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import argparse
+import ctypes
+import ctypes.util
 import sys
 import time
 import warnings
@@ -94,11 +96,6 @@ def main() -> None:
     logger.info("Starting Cosserat Solver")
     logger.debug("Arguments: {args}", args=args)
     logger.info("Log file: {logfile}", logfile=logfile)
-
-    # Validate mutually exclusive OpenMP flags
-    if args.force_use_openmp and args.force_no_openmp:
-        logger.error("--force-use-openmp and --force-no-openmp are mutually exclusive.")
-        sys.exit(1)
 
     logger.info(f"Reading configuration from YAML file: {args.yaml}")
     (
@@ -251,9 +248,11 @@ def main() -> None:
             logger.error("ERROR: Fortran backend is not available.")
             logger.error("       The Fortran backend is required for performance.")
             logger.error(
-                "       Use --allow-python-backend to fallback to Python (slower)."
+                "       Use --allow-python-backend or set backend: auto in params.yaml to fallback to Python (slower)."
             )
-            logger.info("       Use --use-python-backend to explicitly use Python.")
+            logger.info(
+                "       Use --use-python-backend or set backend: python in params.yaml to explicitly use Python."
+            )
             sys.exit(1)
     else:
         # Fortran available and will be used
@@ -281,7 +280,7 @@ def main() -> None:
         logger.error(err)
         raise ValueError(err)
 
-        logger.info("General simulation parameters:")
+    logger.info("General simulation parameters:")
     logger.info("   dt: {dt}", dt=simulation_params.get("dt"))
     logger.info("   N: {N}", N=simulation_params.get("N"))
     if simulation_params.get("t0") is None:
@@ -300,6 +299,51 @@ def main() -> None:
         "   Extension factor: {extension_factor}",
         extension_factor=simulation_params.get("extension_factor"),
     )
+    est_array_size = (
+        simulation_params.get("N")
+        * simulation_params.get("refinement_factor")
+        * simulation_params.get("extension_factor")
+    )
+    logger.info(
+        "   Estimated array size: {est_array_size} (N * refinement_factor * extension_factor)",
+        est_array_size=est_array_size,
+    )
+
+    logger.info("Getting OpenMP information")
+    # Validate mutually exclusive OpenMP flags
+    if args.force_use_openmp and args.force_no_openmp:
+        logger.error("--force-use-openmp and --force-no-openmp are mutually exclusive.")
+        sys.exit(1)
+    info = {}
+    for libname in ("libgomp.so.1", "libomp.so", "libiomp5.so", "libomp.dylib"):
+        try:
+            lib = ctypes.CDLL(libname)
+            info["available"] = True
+            info["max_threads"] = lib.omp_get_max_threads()
+            info["num_procs"] = lib.omp_get_num_procs()
+            info["runtime_lib"] = libname
+            break
+        except OSError:
+            continue
+    if info:
+        logger.info(
+            "   OpenMP runtime library found: {runtime_lib}",
+            runtime_lib=info["runtime_lib"],
+        )
+        logger.info(
+            "   OpenMP max threads: {max_threads}", max_threads=info["max_threads"]
+        )
+        logger.info(
+            "   OpenMP number of processors: {num_procs}", num_procs=info["num_procs"]
+        )
+        if est_array_size < 1000 and not args.force_use_openmp and use_fortran:
+            logger.info(
+                "   Fortran is being used, but the estimated array size is small (<1000). OpenMP parallelization will be skipped."
+            )
+    else:
+        logger.info(
+            "   No OpenMP runtime library found at libgomp.so.1, libomp.so, libiomp5.so, or libomp.dylib."
+        )
 
     logger.info("=" * 40)
     logger.info("Beginning trace generation step at {time}", time=datetime.now())
