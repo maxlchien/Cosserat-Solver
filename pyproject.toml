@@ -7,10 +7,11 @@ authors = [
     { name = "maxlchien", email = "90492587+maxlchien@users.noreply.github.com" }
 ]
 requires-python = ">=3.12"
-dependencies = ["numpy", "scipy", "mpmath", "pyyaml", "matplotlib", "obspy"]
+dependencies = ["numpy", "scipy", "mpmath", "pyyaml", "matplotlib", "obspy", "loguru"]
 
 
 [dependency-groups]
+examples = ["snakemake"]
 test = ["pytest", "pytest-xdist", "pytest-timeout",
     "numpy",
     "scikit-build-core", "snakemake"]
@@ -62,6 +63,7 @@ isort.required-imports = ["from __future__ import annotations"]
 "src/cosserat_solver/cli.py" = ["T201"]
 "plot_seismograms.py" = ["T201"]
 "compare_seismograms.py" = ["T201"]
+"examples/**" = ["T20"]
 
 [project.scripts]
 cosserat-solver = "cosserat_solver.cli:main"

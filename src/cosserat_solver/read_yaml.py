@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import yaml
+from loguru import logger
 
 import cosserat_solver.consts as consts
 
@@ -56,6 +57,7 @@ def read(
     dim = data.get("dimension", -1)
     if dim not in (2, 3):
         err = f"Invalid dimension {dim}. Dimension must be specified as either 2 or 3."
+        logger.error(err)
         raise ValueError(err)
 
     material_params = convert_material_params_to_float(data.get("material_params", {}))
@@ -69,6 +71,7 @@ def read(
     for location in seismogram_locations:
         if len(location) != dim:
             err = f"Seismogram location {location} has length {len(location)}, but dimension is {dim}."
+            logger.error(err)
             raise ValueError(err)
 
     return (
