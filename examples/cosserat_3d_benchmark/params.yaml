@@ -1,6 +1,6 @@
 dimension: 3
 material_type: cosserat
-backend: fortran # defaults to fortran. either fortran, python, or auto (auto will choose fortran if available, otherwise python)
+backend: auto # defaults to fortran. either fortran, python, or auto (auto will choose fortran if available, otherwise python)
 
 material_params:
   rho: 2300

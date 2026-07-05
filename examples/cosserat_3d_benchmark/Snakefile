@@ -20,6 +20,7 @@ rule run_solver:
     output:
         traces=rules.all.input.traces,
     localrule: True
+    threads: workflow.cores # solving is the main step so take all cores available
     shell:
         """
             uv run cosserat-solver --yaml {input.params}

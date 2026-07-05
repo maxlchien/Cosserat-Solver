@@ -15,7 +15,7 @@ TOL = 1e-3  # Default tolerance for normalized error
 
 @pytest.mark.displacement_test
 @pytest.mark.timeout(300)  # Set a timeout of 5 minutes for each test
-def test_simulation_agreement(simulation: str) -> None:
+def test_simulation_agreement(simulation: str, max_cores_per_worker: int) -> None:
     subprocess.run(
         ["snakemake", "clean", "-c1"],
         check=False,
@@ -23,8 +23,9 @@ def test_simulation_agreement(simulation: str) -> None:
         capture_output=True,
         text=True,
     )
+    cores_to_request = min(32, max_cores_per_worker)  # Limit to 32 cores for the test
     result = subprocess.run(
-        ["snakemake", "-c1"],
+        ["snakemake", f"-c{cores_to_request}"],
         check=False,
         cwd=TEST_DIR / f"data/{simulation}",
         capture_output=True,

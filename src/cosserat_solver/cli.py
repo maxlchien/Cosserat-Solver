@@ -299,6 +299,15 @@ def main() -> None:
         "   Extension factor: {extension_factor}",
         extension_factor=simulation_params.get("extension_factor"),
     )
+    est_array_size = (
+        simulation_params.get("N")
+        * simulation_params.get("refinement_factor")
+        * simulation_params.get("extension_factor")
+    )
+    logger.info(
+        "   Estimated array size: {est_array_size} (N * refinement_factor * extension_factor)",
+        est_array_size=est_array_size,
+    )
 
     logger.info("Getting OpenMP information")
     # Validate mutually exclusive OpenMP flags
@@ -318,18 +327,22 @@ def main() -> None:
             continue
     if info:
         logger.info(
-            "OpenMP runtime library found: {runtime_lib}",
+            "   OpenMP runtime library found: {runtime_lib}",
             runtime_lib=info["runtime_lib"],
         )
         logger.info(
-            "OpenMP max threads: {max_threads}", max_threads=info["max_threads"]
+            "   OpenMP max threads: {max_threads}", max_threads=info["max_threads"]
         )
         logger.info(
-            "OpenMP number of processors: {num_procs}", num_procs=info["num_procs"]
+            "   OpenMP number of processors: {num_procs}", num_procs=info["num_procs"]
         )
+        if est_array_size < 1000 and not args.force_use_openmp and use_fortran:
+            logger.info(
+                "   Fortran is being used, but the estimated array size is small (<1000). OpenMP parallelization will be skipped."
+            )
     else:
         logger.info(
-            "No OpenMP runtime library found at libgomp.so.1, libomp.so, libiomp5.so, or libomp.dylib."
+            "   No OpenMP runtime library found at libgomp.so.1, libomp.so, libiomp5.so, or libomp.dylib."
         )
 
     logger.info("=" * 40)
