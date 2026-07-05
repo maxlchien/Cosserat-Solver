@@ -245,6 +245,9 @@ dev = [
     { name = "scikit-build-core" },
     { name = "snakemake" },
 ]
+examples = [
+    { name = "snakemake" },
+]
 nox = [
     { name = "nox" },
     { name = "nox-uv" },
@@ -278,6 +281,7 @@ dev = [
     { name = "scikit-build-core" },
     { name = "snakemake" },
 ]
+examples = [{ name = "snakemake" }]
 nox = [
     { name = "nox", specifier = ">=2025.5.1" },
     { name = "nox-uv", specifier = ">=0.6.2" },
