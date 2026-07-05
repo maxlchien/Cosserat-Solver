@@ -2,8 +2,19 @@
 Simulates wave propagation in Cosserat (or micropolar) media.
 Simulation is performed by computing the Fourier-domain Green's function according to *Microcontinuum Field Theories* by Eringen, 1999.
 All results simulate wave propagation in the infinite medium.
+
 Currently 3D code for elastic or Cosserat media are tested and implemented.
 2D Cosserat also has an implementation, but it is not tested and may not be accurate.
+
+
+### Background
+The goal of this project is to provide computations for wave propagation in the Cosserat medium similarly to [SPECFEMPP](https://github.com/PrincetonUniversity/SPECFEMPP).
+While this package only simulates the infinite homogeneous medium, it does so using the analytic solutions computed by Eringen (1999), as opposed to a timestep method.
+Thus, it is not susceptible to grid-based discretization errors, particularly those related to frequency support.
+
+This package only computes seismograms at specified locations, and each seismogram is computed separately.
+Thus, the full wavefield is not computed, and is much more expensive than with SPECFEM.
+Nevertheless, if only a few seismograms are of interest, this code is generally faster than CPU code for SPECFEM, though not GPU code.
 
 ## Installation
 ### Download
@@ -16,7 +27,7 @@ Via SSH:
 git clone git@github.com:maxlchien/Cosserat-Solver.git
 ```
 ### Install
-it is recommended to use `uv` for installation, since this is compatible with the `Snakefile` workflows in the examples.
+It is recommended to use `uv` for installation, since this is compatible with the `Snakefile` workflows in the examples.
 
 ```
 uv pip install .
@@ -260,16 +271,10 @@ Location is mandatory.
 Name is optional and defaults to S0001, S0002, etc., depending on the position of the station in the list.
 If no seismogram type is specified, then the default is both displacement and rotation for Cosserat materials, or just displacement for elastic.
 
+</details>
+
 ### OpenMP Thread Arguments
 If OpenMP is available, the maximum number of threads can be controlled using the environment variable `OMP_NUM_THREADS`.
 When running this from a snakemake job, the `threads:` key sets the number of threads available to each rule.
 If `threads` is set to `workflow.cores`, the number provided can be controlled for each run by running `snakemake -c1`, `snakemake -c8`, etc.
 
-## Background
-The goal of this project is to provide computations for wave propagation in the Cosserat medium similarly to [SPECFEMPP](https://github.com/PrincetonUniversity/SPECFEMPP).
-While this package only simulates the infinite homogeneous medium, it does so using the analytic solutions computed by Eringen (1999), as opposed to a timestep method.
-Thus, it is not susceptible to grid-based discretization errors, particularly those related to frequency support.
-
-This package only computes seismograms at specified locations, and each seismogram is computed separately.
-Thus, the full wavefield is not computed, and is much more expensive than with SPECFEM.
-Nevertheless, if only a few seismograms are of interest, this code is generally faster than CPU code for SPECFEM, though not GPU code.
