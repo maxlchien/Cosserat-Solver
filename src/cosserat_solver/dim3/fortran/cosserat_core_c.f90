@@ -211,6 +211,65 @@ contains
     deallocate(result_quad)
   end subroutine greens_mixed_force_vectorized_wrapper
 
+  subroutine greens_mixed_force_points_vectorized_wrapper(points, n_points, omega, n_omega, &
+    rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+    force_use_openmp, force_no_openmp, result_real, result_imag) &
+    bind(C, name="greens_mixed_force_points_vectorized_wrapper")
+    integer(c_int), intent(in), value :: n_points, n_omega
+    real(c_double), intent(in) :: points(3, n_points)
+    real(c_double), intent(in) :: omega(n_omega)
+    real(c_double), intent(in), value :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+    logical(c_bool), intent(in), value :: force_use_openmp, force_no_openmp
+    real(c_double), intent(out) :: result_real(n_omega, 6, 6, n_points)
+    real(c_double), intent(out) :: result_imag(n_omega, 6, 6, n_points)
+
+    real(rk), allocatable :: omega_q(:)
+    real(rk), allocatable :: points_q(:,:)
+    complex(rk), allocatable :: result_quad(:,:,:,:)
+    real(rk) :: rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q
+    logical :: force_use, force_no
+
+    ! Allocate arrays
+    allocate(omega_q(n_omega))
+    allocate(points_q(3, n_points))
+    allocate(result_quad(n_omega, 6, 6, n_points))
+
+    ! Convert inputs to rk kind
+    points_q = real(points, rk)
+    rho_q = real(rho, rk)
+    lam_q = real(lam, rk)
+    mu_q = real(mu, rk)
+    nu_q = real(nu, rk)
+    J_q = real(J, rk)
+    lam_c_q = real(lam_c, rk)
+    mu_c_q = real(mu_c, rk)
+    nu_c_q = real(nu_c, rk)
+    force_use = force_use_openmp
+    force_no = force_no_openmp
+    omega_q = real(omega, rk)
+
+    ! Call batched Fortran function with conditional optional arguments
+    if (force_use) then
+      result_quad = greens_mixed_force_points_vectorized(points_q, n_points, omega_q, n_omega, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q, force_use_openmp=.true.)
+    else if (force_no) then
+      result_quad = greens_mixed_force_points_vectorized(points_q, n_points, omega_q, n_omega, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q, force_no_openmp=.true.)
+    else
+      result_quad = greens_mixed_force_points_vectorized(points_q, n_points, omega_q, n_omega, &
+                                      rho_q, lam_q, mu_q, nu_q, J_q, lam_c_q, mu_c_q, nu_c_q)
+    end if
+
+    ! Convert results back to C-compatible arrays
+    result_real = real(real(result_quad), kind=c_double)
+    result_imag = real(aimag(result_quad), kind=c_double)
+
+    ! Deallocate arrays
+    deallocate(omega_q)
+    deallocate(points_q)
+    deallocate(result_quad)
+  end subroutine greens_mixed_force_points_vectorized_wrapper
+
   subroutine greens_displacement_force_vectorized_wrapper(x, omega, n_omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
     force_use_openmp, force_no_openmp, result_real, result_imag) &
     bind(C, name="greens_displacement_force_vectorized_wrapper")

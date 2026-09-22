@@ -223,6 +223,115 @@ def evaluate_greens_fortran(
     raise ValueError(err)
 
 
+def evaluate_greens_points_fortran(
+    points: np.ndarray,
+    dim: int,
+    omega_array: np.ndarray,
+    material_params: dict,
+    material_type: int = MATERIAL_TYPE_COSSERAT,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Evaluate Green's functions batched over spatial points and frequencies (Fortran).
+
+    Crosses the Python/C/Fortran boundary a single time for the whole
+    (points x frequencies) batch, filling caller-allocated buffers via the buffer
+    protocol. Intended for the spherical wavefield reconstruction, where the Green
+    tensor is sampled along a radial ray at many radii.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Spatial locations, shape (n_points, 3).
+    dim : int
+        The dimension of the problem. Only dim == 3 is supported.
+    omega_array : np.ndarray
+        Array of angular frequencies (real values), shape (n_omega,).
+    material_params : dict
+        Material parameters (rho, lam, mu, nu, J, lam_c, mu_c, nu_c).
+    material_type : int, default=MATERIAL_TYPE_COSSERAT
+        Material type (Cosserat or elastic).
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small batches.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large batches.
+
+    Returns
+    -------
+    greens : np.ndarray
+        Complex array of shape (n_points, len(omega_array), 6, 6).
+
+    Raises
+    ------
+    ValueError
+        If the dimension/material combination is unsupported, points has the wrong
+        shape, or both force_use_openmp and force_no_openmp are True.
+    RuntimeError
+        If the Fortran backend is not available.
+    """
+    if not FORTRAN_AVAILABLE:
+        err = "Fortran backend not available."
+        logger.error(err)
+        raise RuntimeError(err)
+
+    _validate_material_params(material_params)
+    _validate_dimension_backend_material_combo(dim, BACKEND_FORTRAN, material_type)
+
+    points = np.asarray(points, dtype=float)
+    if points.ndim != 2 or points.shape[1] != 3:
+        err = "points must have shape (n_points, 3)."
+        logger.error(err)
+        raise ValueError(err)
+
+    if dim == 3 and material_type == MATERIAL_TYPE_ELASTIC:
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+        return elastic_wrapper.greens_mixed_force_points_vectorized(
+            points,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            0,
+            1,
+            0,
+            0,
+            0,  # dummy values for nu, J, ... due to API
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_points, n_omega, 6, 6)
+
+    if dim == 3 and material_type == MATERIAL_TYPE_COSSERAT:
+        rho = material_params["rho"]
+        lam = material_params["lam"]
+        mu = material_params["mu"]
+        nu = material_params["nu"]
+        J = material_params["J"]
+        lam_c = material_params["lam_c"]
+        mu_c = material_params["mu_c"]
+        nu_c = material_params["nu_c"]
+        return cosserat_wrapper.greens_mixed_force_points_vectorized(
+            points,
+            omega_array,
+            rho,
+            lam,
+            mu,
+            nu,
+            J,
+            lam_c,
+            mu_c,
+            nu_c,
+            force_use_openmp=force_use_openmp,
+            force_no_openmp=force_no_openmp,
+        )  # shape (n_points, n_omega, 6, 6)
+
+    err = f"Combination of dimension {dim} and material type {material_type} is not supported for Fortran backend."
+    logger.error(err)
+    raise ValueError(err)
+
+
 def evaluate_greens_python(
     x: np.ndarray,
     dim: int,
