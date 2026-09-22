@@ -124,7 +124,9 @@ def _oversampled_time_array(simulation_params: dict) -> np.ndarray:
     return np.arange(window_start, window_end + dt_refined / 2, dt_refined)
 
 
-def downsample_signal(expanded_time, downsampled_time, expanded_signal) -> np.ndarray:
+def downsample_signal(
+    expanded_time, downsampled_time, expanded_signal, axis: int = 0
+) -> np.ndarray:
     """
     Downsample the expanded time-domain signal to match the downsampled time array.
 
@@ -137,18 +139,24 @@ def downsample_signal(expanded_time, downsampled_time, expanded_signal) -> np.nd
         The desired downsampled time array. Assumed to be a contiguous subset of expanded_time.
         Shape: (N,)
     expanded_signal : np.ndarray
-        The oversampled time-domain signal.
-        Shape: (N_oversample, *spatial_dims)
+        The oversampled time-domain signal, with the time dimension along `axis`.
+        Shape: (..., N_oversample, ...)
+    axis : int, default=0
+        The axis of `expanded_signal` corresponding to time.
 
     Returns
     -------
     np.ndarray
-        The downsampled time-domain signal.
-        Shape: (N, *spatial_dims)
+        The downsampled time-domain signal, with the time dimension along `axis`.
+        Shape: (..., N, ...)
     """
     # downsample with linear interpolation
     interpolator = interp1d(
-        expanded_time, expanded_signal, axis=0, kind="linear", fill_value="extrapolate"
+        expanded_time,
+        expanded_signal,
+        axis=axis,
+        kind="linear",
+        fill_value="extrapolate",
     )
     return interpolator(downsampled_time)
 
@@ -232,6 +240,7 @@ def cont_irfft(func, simulation_params: dict) -> tuple[np.ndarray, np.ndarray]:
 def cont_ifft(
     f_hat: Callable[[float], complex] | Callable[[np.ndarray], np.ndarray],
     simulation_params: dict,
+    axis: int = 0,
 ) -> tuple[np.ndarray, np.ndarray]:
     """
     Compute inverse Fourier transform of a continuous frequency-domain function.
@@ -246,6 +255,9 @@ def cont_ifft(
         Function with signature f_hat(omega: float) -> complex or vectorized as f_hat(omega: np.ndarray) -> np.ndarray
         Returns the continuous Fourier transform at angular frequency omega.
         Should be conjugate symmetric (f_hat(-ω) = conj(f_hat(ω))) for real signals.
+        When ``axis`` is nonzero the vectorized form must place the frequency
+        dimension on that axis of its output. The scalar-fallback form is
+        unaffected (its per-frequency outputs are stacked onto ``axis``).
     simulation_params : dict
         Dictionary containing:
         - 'N': int, number of output samples in time domain
@@ -257,14 +269,19 @@ def cont_ifft(
             Defaults to 1 if not provided.
         - 'support_window': tuple[float, float] (optional), custom window bounds
             This expands the computed window to contain it.
+    axis : int, default=0
+        The axis of the frequency-domain samples (and of the returned signal)
+        corresponding to frequency/time. The default of 0 preserves the
+        original single-axis behavior exactly.
 
     Returns
     -------
     time : np.ndarray
         Time array corresponding to the output trace, shape (N,), values [t0, t0 + dt, ..., t0 + (N-1)*dt]
     signal : np.ndarray
-        Time-domain signal with shape (N, *func_shape), where func_shape is the
-        shape of the output from func (excluding the frequency dimension).
+        Time-domain signal with the time dimension along `axis`. For axis=0 the
+        shape is (N, *func_shape), where func_shape is the shape of the output
+        from func excluding the frequency dimension.
 
     Notes
     -----
@@ -279,23 +296,40 @@ def cont_ifft(
     omega_array = _omega_array(simulation_params)
 
     try:
-        # vectorized
-        freq_samples = f_hat(omega_array)
+        # vectorized: frequency dimension expected on `axis`
+        freq_samples = np.asarray(f_hat(omega_array))
+        vectorized = True
     except Exception:
-        # nonvectorized
+        # nonvectorized: per-frequency outputs stacked on axis 0
         freq_samples = np.array([f_hat(omega) for omega in omega_array])
+        vectorized = False
+
+    # Normalize axis against the full (frequency-included) dimensionality, then
+    # move the stacked frequency axis into place for the scalar-fallback branch.
+    axis = axis % freq_samples.ndim
+    if not vectorized and axis != 0:
+        freq_samples = np.moveaxis(freq_samples, 0, axis)
+
+    # Guard against caller shape mistakes while still permitting the length-1
+    # broadcast forms exercised by the existing degenerate tests.
+    if freq_samples.shape[axis] not in (1, len(omega_array)):
+        err = (
+            f"f_hat output has length {freq_samples.shape[axis]} along axis {axis}, "
+            f"expected {len(omega_array)} (the number of frequency samples)."
+        )
+        raise ValueError(err)
 
     freq_samples = np.conj(freq_samples)  # conjugate to match fourier convention
 
     # phase shift
     shifted_time = -(expanded_time[0] + expanded_time[-1]) / 2
     phase_shift = np.exp(-1j * omega_array * shifted_time)
-    # Reshape scalars to have the right number of dimensions
-    num_extra_dims = freq_samples.ndim - 1
-    shape = (len(phase_shift),) + (1,) * num_extra_dims
+    # Reshape the phase factor to broadcast along `axis`
+    shape = [1] * freq_samples.ndim
+    shape[axis] = len(phase_shift)
     freq_samples_shifted = freq_samples * phase_shift.reshape(shape)
 
-    expanded_time_signal = np.fft.ifft(freq_samples_shifted, axis=0, norm="backward")
+    expanded_time_signal = np.fft.ifft(freq_samples_shifted, axis=axis, norm="backward")
 
     # fix to account for conventions
     refinement_factor = simulation_params.get("refinement_factor", 1)
@@ -305,11 +339,11 @@ def cont_ifft(
         expanded_time_signal
     )  # conjugate back in case signal was complex
 
-    expanded_time_signal = np.fft.fftshift(expanded_time_signal, axes=0)
+    expanded_time_signal = np.fft.fftshift(expanded_time_signal, axes=axis)
 
     # extract forward time window
     final_signal = downsample_signal(
-        expanded_time, _time_array(simulation_params), expanded_time_signal
+        expanded_time, _time_array(simulation_params), expanded_time_signal, axis=axis
     )
 
     return _time_array(simulation_params), final_signal

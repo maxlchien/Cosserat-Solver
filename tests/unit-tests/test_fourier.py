@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from cosserat_solver.fourier import cont_ifft
+from cosserat_solver.fourier import cont_ifft, downsample_signal
 
 
 def gaussian_pair(t0=0.0, sigma=1.0):
@@ -321,3 +321,109 @@ def test_cont_ifft_singleton(f_pair, simulation_params_fine):
     expected_peak = np.max(np.abs(expected))
     atol = 1e-6 * expected_peak if expected_peak != 0 else 1e-10
     np.testing.assert_allclose(result, expected, atol=atol, rtol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# Axis-aware cont_ifft tests
+# ---------------------------------------------------------------------------
+
+_AXIS_PARAMS = {
+    "N": 128,
+    "dt": 0.02,
+    "extension_factor": 6,
+    "refinement_factor": 4,
+    "t0": 0.0,
+    "support_window": (-30.0, 30.0),
+}
+
+# A small batch of distinct spectra to transform together.
+_AXIS_PAIRS = [
+    gaussian_pair(t0=0.0, sigma=1.0),
+    gaussian_pair(t0=2.0, sigma=0.5),
+    complex_gaussian_pair(t0=0.0, sigma=1.0, omega_c=2.0),
+]
+
+
+def test_cont_ifft_axis_matches_axis0_batched():
+    """A batched vectorized callback with frequency on axis 1 must match
+    stacking independent axis=0 transforms of each spectrum."""
+    fhats = [pair[1] for pair in _AXIS_PAIRS]
+
+    def batched_fhat(omega_array):
+        # shape (n_signals, n_omega) -- frequency on axis 1
+        return np.stack([fh(omega_array) for fh in fhats], axis=0)
+
+    _, batched = cont_ifft(batched_fhat, dict(_AXIS_PARAMS), axis=1)
+
+    singles = [cont_ifft(fh, dict(_AXIS_PARAMS), axis=0)[1] for fh in fhats]
+    expected = np.stack(singles, axis=1)  # (N, n_signals) -> freq(time) on axis 0
+
+    # batched has time on axis 1: shape (n_signals, N)
+    np.testing.assert_allclose(batched, expected.T, rtol=1e-10, atol=1e-12)
+
+
+def test_cont_ifft_axis_with_trailing_tensor_dims():
+    """Frequency on a middle axis, with trailing tensor dimensions, mirrors the
+    wavefield use case (n_points, n_omega, 2, 2)."""
+    fhats = [pair[1] for pair in _AXIS_PAIRS]
+
+    def batched_fhat(omega_array):
+        # (n_signals, n_omega) -> broadcast into a (n_signals, n_omega, 2, 2) tensor
+        base = np.stack([fh(omega_array) for fh in fhats], axis=0)
+        tensor = np.zeros((*base.shape, 2, 2), dtype=complex)
+        tensor[..., 0, 0] = base
+        tensor[..., 1, 1] = 2.0 * base
+        return tensor
+
+    _, batched = cont_ifft(batched_fhat, dict(_AXIS_PARAMS), axis=1)
+    assert batched.shape == (len(fhats), _AXIS_PARAMS["N"], 2, 2)
+
+    singles = [cont_ifft(fh, dict(_AXIS_PARAMS), axis=0)[1] for fh in fhats]
+    expected00 = np.stack(singles, axis=0)  # (n_signals, N)
+    np.testing.assert_allclose(batched[..., 0, 0], expected00, rtol=1e-10, atol=1e-12)
+    np.testing.assert_allclose(
+        batched[..., 1, 1], 2.0 * expected00, rtol=1e-10, atol=1e-12
+    )
+    np.testing.assert_allclose(batched[..., 0, 1], 0.0, atol=1e-12)
+
+
+def test_cont_ifft_axis_scalar_fallback():
+    """A scalar-only callback (forces the non-vectorized branch) respects axis."""
+    fhats = [pair[1] for pair in _AXIS_PAIRS]
+
+    def scalar_fhat(omega):
+        if isinstance(omega, np.ndarray):
+            msg = "scalar only"
+            raise TypeError(msg)
+        return np.array([fh(omega) for fh in fhats])  # shape (n_signals,)
+
+    _, axis1 = cont_ifft(scalar_fhat, dict(_AXIS_PARAMS), axis=1)
+    _, axis0 = cont_ifft(scalar_fhat, dict(_AXIS_PARAMS), axis=0)
+
+    # axis0: (N, n_signals); axis1: (n_signals, N)
+    np.testing.assert_allclose(axis1, np.moveaxis(axis0, 0, 1), rtol=1e-10, atol=1e-12)
+
+
+def test_cont_ifft_axis_shape_mismatch_raises():
+    """A vectorized callback whose declared axis has the wrong length errors."""
+
+    def bad_fhat(omega_array):
+        return np.zeros((3, len(omega_array) + 5), dtype=complex)
+
+    with pytest.raises(ValueError, match="along axis"):
+        cont_ifft(bad_fhat, dict(_AXIS_PARAMS), axis=1)
+
+
+def test_downsample_signal_axis():
+    """downsample_signal interpolates along the requested axis."""
+    expanded_time = np.linspace(0.0, 1.0, 21)
+    downsampled_time = np.linspace(0.0, 1.0, 6)
+    # signal linear in time on axis 1: value == 2*t, independent per row/col
+    signal = np.empty((3, 21, 4))
+    signal[:] = (2.0 * expanded_time)[None, :, None]
+
+    out = downsample_signal(expanded_time, downsampled_time, signal, axis=1)
+    assert out.shape == (3, 6, 4)
+    np.testing.assert_allclose(
+        out, (2.0 * downsampled_time)[None, :, None] * np.ones((3, 1, 4)), rtol=1e-12
+    )
