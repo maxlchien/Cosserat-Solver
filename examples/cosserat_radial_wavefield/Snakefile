@@ -1,0 +1,37 @@
+
+
+rule all:
+    input:
+        wavefield=[
+            "OUTPUT_FILES/low/spherical_wavefield/spherical_wavefield.h5",
+            "OUTPUT_FILES/med/spherical_wavefield/spherical_wavefield.h5",
+            "OUTPUT_FILES/hi/spherical_wavefield/spherical_wavefield.h5",
+            "OUTPUT_FILES/low/spherical_wavefield/spherical_wavefield.xdmf",
+            "OUTPUT_FILES/med/spherical_wavefield/spherical_wavefield.xdmf",
+            "OUTPUT_FILES/hi/spherical_wavefield/spherical_wavefield.xdmf",
+        ],
+    localrule: True
+
+
+rule run_solver:
+    input:
+        low_params="low_params.yaml",
+        med_params="med_params.yaml",
+        hi_params="hi_params.yaml",
+    output:
+        wavefield=rules.all.input.wavefield,
+    localrule: True
+    threads: workflow.cores # solving is the main step so take all cores available
+    shell:
+        """
+            uv run cosserat-solver --yaml {input.low_params} --o OUTPUT_FILES/low
+            uv run cosserat-solver --yaml {input.med_params} --o OUTPUT_FILES/med
+            uv run cosserat-solver --yaml {input.hi_params} --o OUTPUT_FILES/hi
+        """
+
+rule clean:
+    localrule: True
+    shell:
+        """
+            rm -rf OUTPUT_FILES
+        """
