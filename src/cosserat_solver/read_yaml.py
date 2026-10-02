@@ -7,9 +7,197 @@ from loguru import logger
 import cosserat_solver.consts as consts
 
 
+def _require_float(value: object, name: str) -> float:
+    """Coerce a YAML scalar to float, raising ValueError with a clear message."""
+    try:
+        return float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        msg = f"'{name}' in 'spherical_wavefield' must be a number, got {value!r}."
+        logger.error(msg)
+        raise ValueError(msg) from None
+
+
+def _require_int(value: object, name: str, minimum: int) -> int:
+    """Coerce an integer-valued YAML scalar, rejecting bools and non-integers."""
+    if isinstance(value, bool):
+        msg = f"'{name}' in 'spherical_wavefield' must be an integer, not a bool."
+        logger.error(msg)
+        raise ValueError(msg)
+    try:
+        is_integer_valued = float(value).is_integer()  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        is_integer_valued = False
+    if not is_integer_valued:
+        msg = f"'{name}' in 'spherical_wavefield' must be an integer, got {value!r}."
+        logger.error(msg)
+        raise ValueError(msg)
+    result = int(value)  # type: ignore[arg-type]
+    if result < minimum:
+        msg = f"'{name}' in 'spherical_wavefield' must be >= {minimum}, got {result}."
+        logger.error(msg)
+        raise ValueError(msg)
+    return result
+
+
+def _parse_spherical_wavefield(block: object, sources: list) -> dict:
+    """
+    Validate and normalize the optional 'spherical_wavefield' block.
+
+    Returns a dictionary with every key populated (defaults applied). See the
+    'spherical_wavefield' entry of :func:`read`'s docstring for the schema. All
+    sources must sit exactly at the wavefield center.
+    """
+    if not isinstance(block, dict):
+        msg = f"'spherical_wavefield' must be a mapping, got {type(block).__name__}."
+        logger.error(msg)
+        raise ValueError(msg)
+    block = dict(block)  # copy so we can pop and detect leftover (extra) keys
+    result: dict = {}
+
+    # center (optional, default origin)
+    if "center" in block:
+        center = block.pop("center")
+        if not isinstance(center, (list, np.ndarray)) or len(center) != 3:
+            msg = f"'center' in 'spherical_wavefield' must be a length-3 list, got {center!r}."
+            logger.error(msg)
+            raise ValueError(msg)
+        result["center"] = np.array([float(v) for v in center], dtype=float)
+    else:
+        result["center"] = np.zeros(3, dtype=float)
+
+    # r_max (required, > 0)
+    if "r_max" not in block:
+        msg = "Missing 'r_max' key in 'spherical_wavefield'."
+        logger.error(msg)
+        raise KeyError(msg)
+    r_max = _require_float(block.pop("r_max"), "r_max")
+    if r_max <= 0.0:
+        msg = f"'r_max' in 'spherical_wavefield' must be > 0, got {r_max}."
+        logger.error(msg)
+        raise ValueError(msg)
+    result["r_max"] = r_max
+
+    # num_radii (required, >= 1)
+    if "num_radii" not in block:
+        msg = "Missing 'num_radii' key in 'spherical_wavefield'."
+        logger.error(msg)
+        raise KeyError(msg)
+    result["num_radii"] = _require_int(block.pop("num_radii"), "num_radii", 1)
+
+    # r_min (optional; default r_max / num_radii so radii are dr, 2*dr, ..., r_max)
+    if "r_min" in block:
+        r_min = _require_float(block.pop("r_min"), "r_min")
+        if r_min <= 0.0:
+            msg = f"'r_min' in 'spherical_wavefield' must be > 0, got {r_min}."
+            logger.error(msg)
+            raise ValueError(msg)
+        if r_min >= r_max:
+            msg = f"'r_min' ({r_min}) must be < 'r_max' ({r_max}) in 'spherical_wavefield'."
+            logger.error(msg)
+            raise ValueError(msg)
+        result["r_min"] = r_min
+    else:
+        result["r_min"] = r_max / result["num_radii"]
+        logger.info(
+            "Missing 'r_min' key in 'spherical_wavefield'. Defaulting to r_max / num_radii = {r_min}.",
+            r_min=result["r_min"],
+        )
+
+    # num_theta (required, >= 2: theta spans [0, pi], a single point degenerates)
+    if "num_theta" not in block:
+        msg = "Missing 'num_theta' key in 'spherical_wavefield'."
+        logger.error(msg)
+        raise KeyError(msg)
+    result["num_theta"] = _require_int(block.pop("num_theta"), "num_theta", 2)
+
+    # num_phi (required, >= 1)
+    if "num_phi" not in block:
+        msg = "Missing 'num_phi' key in 'spherical_wavefield'."
+        logger.error(msg)
+        raise KeyError(msg)
+    result["num_phi"] = _require_int(block.pop("num_phi"), "num_phi", 1)
+
+    # steps_per_snapshot (required, >= 1)
+    if "steps_per_snapshot" not in block:
+        msg = (
+            "Missing 'steps_per_snapshot' key in 'spherical_wavefield'. This is "
+            "required; set it to 1 to write every output time sample."
+        )
+        logger.error(msg)
+        raise KeyError(msg)
+    result["steps_per_snapshot"] = _require_int(
+        block.pop("steps_per_snapshot"), "steps_per_snapshot", 1
+    )
+
+    # directory (optional; None means the CLI resolves a default under --o)
+    if "directory" in block:
+        directory = block.pop("directory")
+        if not isinstance(directory, str) or not directory:
+            msg = f"'directory' in 'spherical_wavefield' must be a non-empty string, got {directory!r}."
+            logger.error(msg)
+            raise ValueError(msg)
+        result["directory"] = directory
+    else:
+        result["directory"] = None
+
+    # compression (optional, default gzip; null or "none" disables it)
+    if "compression" in block:
+        compression = block.pop("compression")
+        if compression is None or (
+            isinstance(compression, str) and compression.lower() == "none"
+        ):
+            result["compression"] = None
+        elif isinstance(compression, str):
+            result["compression"] = compression
+        else:
+            msg = f"'compression' in 'spherical_wavefield' must be a string or null, got {compression!r}."
+            logger.error(msg)
+            raise ValueError(msg)
+    else:
+        result["compression"] = "gzip"
+
+    # write_xdmf (optional, default True)
+    if "write_xdmf" in block:
+        write_xdmf = block.pop("write_xdmf")
+        if not isinstance(write_xdmf, bool):
+            msg = f"'write_xdmf' in 'spherical_wavefield' must be a boolean, got {write_xdmf!r}."
+            logger.error(msg)
+            raise ValueError(msg)
+        result["write_xdmf"] = write_xdmf
+    else:
+        result["write_xdmf"] = True
+
+    # radial_chunk_size (optional, default None)
+    if block.get("radial_chunk_size") is not None:
+        result["radial_chunk_size"] = _require_int(
+            block.pop("radial_chunk_size"), "radial_chunk_size", 1
+        )
+    else:
+        block.pop("radial_chunk_size", None)
+        result["radial_chunk_size"] = None
+
+    # All sources must sit exactly at the wavefield center.
+    for i, source in enumerate(sources):
+        location = np.asarray(source["location"], dtype=float)
+        if not np.allclose(location, result["center"]):
+            msg = (
+                f"'spherical_wavefield' requires all sources at the center "
+                f"{result['center']}, but source {i + 1} is at {location}."
+            )
+            logger.error(msg)
+            raise ValueError(msg)
+
+    if block:
+        logger.warning(
+            f"Extra keys in 'spherical_wavefield' that are not recognized: {', '.join(block.keys())}. They will be ignored."
+        )
+
+    return result
+
+
 def read(
     file_path: str,
-) -> tuple[int, int, int, dict, list, dict, int, dict, dict]:
+) -> tuple[int, int, int, dict, list, dict, int, dict, dict | None, dict]:
     """
     Read a YAML file and return its contents as a dictionary.
     All substitution of default values should occur here.
@@ -70,6 +258,29 @@ def read(
             - `location`: A tuple of floats specifying the receiver's location.
             - `name`: An optional string specifying the receiver's name. If not provided, a default name will be generated.
             - 'seismogram_type`: An optional list specifying the type of seismogram to record. Defaults to both displacement and rotation for Cosserat materials, and only displacement for elastic materials.
+
+    spherical_wavefield: dict | None
+        The spherical wavefield output parameters, or None if the optional
+        'spherical_wavefield' block is absent (no wavefield is written). When present,
+        a normalized dictionary containing:
+        - 'center': A length-3 numpy array; the wavefield center. All sources must be
+          located here. Defaults to the origin.
+        - 'r_min': The innermost radius (float > 0). Defaults to
+          'r_max' / 'num_radii' when absent (so the radii become dr, 2*dr, ..., r_max).
+        - 'r_max': The outermost radius (float > 0).
+        - 'num_radii': The number of radial shells (int >= 1).
+        - 'num_theta': The number of polar-angle samples in [0, pi] (int >= 2).
+        - 'num_phi': The number of azimuth samples in [0, 2*pi) (int >= 1).
+        - 'steps_per_snapshot': The stride over the N-sample output grid between
+          written snapshots (int >= 1). Required; there is no default.
+        - 'directory': The output directory (str), or None to default to a
+          'spherical_wavefield' subdirectory of the CLI output directory.
+        - 'compression': The HDF5 compression filter (str), or None to disable.
+          Defaults to 'gzip'.
+        - 'write_xdmf': Whether to write the ParaView XDMF sidecar (bool). Defaults
+          to True.
+        - 'radial_chunk_size': The radial chunk size bounding transient memory
+          (int >= 1), or None for no chunking. Defaults to None.
 
     full_yaml: dict
         The full contents of the YAML file as a dictionary.
@@ -407,13 +618,22 @@ def read(
         digits_precision=digits_precision,
     )
 
+    has_wavefield = "spherical_wavefield" in data
+
     logger.debug("Reading receivers key...")
-    try:  # if wavefield output is added, this warning should only raise when no output is specified
+    try:
         receivers_read = data.pop("receivers")
     except KeyError:
-        logger.warning(
-            "Missing 'receivers' key in YAML file. Defaulting to empty list of seismogram locations."
-        )
+        # Only warn about missing receivers when no other output is requested; a
+        # wavefield-only run legitimately has no seismogram receivers.
+        if has_wavefield:
+            logger.info(
+                "Missing 'receivers' key in YAML file, but a 'spherical_wavefield' block is present. Defaulting to empty list of seismogram locations."
+            )
+        else:
+            logger.warning(
+                "Missing 'receivers' key in YAML file. Defaulting to empty list of seismogram locations."
+            )
         receivers_read = {"network": "AA", "receiver_list": []}
     receivers = {}
     try:
@@ -502,6 +722,25 @@ def read(
         )
     logger.debug("Receivers read successfully: {receivers}", receivers=receivers)
 
+    logger.debug("Reading spherical_wavefield key...")
+    if "spherical_wavefield" in data:
+        if dimension_code != consts.DIMENSION_3D:
+            msg = f"'spherical_wavefield' output is 3D only, but dimension is {dimension}."
+            logger.error(msg)
+            raise ValueError(msg)
+        spherical_wavefield = _parse_spherical_wavefield(
+            data.pop("spherical_wavefield"), sources
+        )
+        logger.debug(
+            "Spherical wavefield read successfully: {spherical_wavefield}",
+            spherical_wavefield=spherical_wavefield,
+        )
+    else:
+        logger.debug(
+            "Missing 'spherical_wavefield' key in YAML file. No wavefield output will be written."
+        )
+        spherical_wavefield = None
+
     if data:
         logger.warning(
             f"Extra keys in YAML file that are not required or recognized: {', '.join(data.keys())}. They will be ignored."
@@ -516,5 +755,6 @@ def read(
         simulation_params,
         digits_precision,
         receivers,
+        spherical_wavefield,
         data_copy,
     )

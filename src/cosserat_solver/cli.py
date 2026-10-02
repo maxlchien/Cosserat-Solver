@@ -3,15 +3,18 @@ from __future__ import annotations
 import argparse
 import ctypes
 import ctypes.util
+import os
 import sys
 import time
 import warnings
 from datetime import datetime
 
+import numpy as np
 from loguru import logger
 
 import cosserat_solver.read_yaml
 import cosserat_solver.ricker
+import cosserat_solver.spherical_wavefield
 import cosserat_solver.trace_generator
 from cosserat_solver import consts
 from cosserat_solver.greens_wrapper import FORTRAN_AVAILABLE
@@ -107,6 +110,7 @@ def main() -> None:
         simulation_params,
         digits_precision,
         receivers,
+        spherical_wavefield,
         full_yaml,
     ) = cosserat_solver.read_yaml.read(args.yaml)
     logger.info("Configuration read successfully from YAML file.")
@@ -227,6 +231,30 @@ def main() -> None:
                 logger.error(err)
                 raise ValueError(err)
 
+    if spherical_wavefield is not None:
+        logger.info("Spherical wavefield output:")
+        logger.info("   Center: {center}", center=spherical_wavefield.get("center"))
+        logger.info(
+            "   Radii: {num_radii} shells from {r_min} to {r_max}",
+            num_radii=spherical_wavefield.get("num_radii"),
+            r_min=spherical_wavefield.get("r_min"),
+            r_max=spherical_wavefield.get("r_max"),
+        )
+        logger.info(
+            "   Angular samples: {num_theta} theta x {num_phi} phi",
+            num_theta=spherical_wavefield.get("num_theta"),
+            num_phi=spherical_wavefield.get("num_phi"),
+        )
+        logger.info(
+            "   Steps per snapshot: {steps_per_snapshot}",
+            steps_per_snapshot=spherical_wavefield.get("steps_per_snapshot"),
+        )
+        logger.info(
+            "   Directory: {directory}",
+            directory=spherical_wavefield.get("directory")
+            or "(default: <output-dir>/spherical_wavefield)",
+        )
+
     # Handle backend selection
     use_fortran = True
     if backend == consts.BACKEND_PYTHON:
@@ -257,6 +285,27 @@ def main() -> None:
     else:
         # Fortran available and will be used
         logger.info("Using Fortran backend")
+
+    # Fail fast on wavefield prerequisites before the (potentially long) trace loop.
+    if spherical_wavefield is not None:
+        if not (use_fortran and FORTRAN_AVAILABLE):
+            logger.error(
+                "Spherical wavefield output requires the Fortran backend, but the "
+                "Python backend is selected or Fortran is unavailable."
+            )
+            logger.error(
+                "Remove --use-python-backend / 'backend: python', ensure the native "
+                "extensions are built, or drop the 'spherical_wavefield' block."
+            )
+            sys.exit(1)
+        try:
+            import h5py  # noqa: F401, PLC0415  (probe availability before the trace loop)
+        except ImportError:
+            logger.error(
+                "Spherical wavefield output requires h5py. Install it with "
+                "`pip install cosserat_solver[wavefield]`."
+            )
+            sys.exit(1)
 
     source_objects = []
     earliest_start_time = float("inf")
@@ -383,3 +432,66 @@ def main() -> None:
         duration=time.perf_counter() - trace_generation_start,
     )
     logger.info("=" * 40)
+
+    if spherical_wavefield is not None:
+        # t0 is already concrete in simulation_params (resolved above), so the
+        # wavefield shares the traces' time grid.
+        directory = spherical_wavefield["directory"] or os.path.join(
+            args.o if args.o else "OUTPUT_FILES", "spherical_wavefield"
+        )
+        os.makedirs(directory, exist_ok=True)
+        output_path = os.path.join(directory, "spherical_wavefield.h5")
+
+        radii = np.linspace(
+            spherical_wavefield["r_min"],
+            spherical_wavefield["r_max"],
+            spherical_wavefield["num_radii"],
+        )
+        theta = np.linspace(0.0, np.pi, spherical_wavefield["num_theta"])
+        phi = np.linspace(
+            0.0, 2.0 * np.pi, spherical_wavefield["num_phi"], endpoint=False
+        )
+
+        # steps_per_snapshot lives in the wavefield block; the API reads it from
+        # simulation_params, so inject it into a copy scoped to this one call.
+        wavefield_sim_params = dict(simulation_params)
+        wavefield_sim_params["steps_per_snapshot"] = spherical_wavefield[
+            "steps_per_snapshot"
+        ]
+
+        logger.info("=" * 40)
+        logger.info("Beginning spherical wavefield step at {time}", time=datetime.now())
+        logger.info("=" * 40)
+        wavefield_start = time.perf_counter()
+
+        meta = cosserat_solver.spherical_wavefield.write_spherical_wavefield(
+            output_path,
+            radii,
+            theta,
+            phi,
+            dim,
+            material_type,
+            material_params,
+            source_objects,
+            wavefield_sim_params,
+            use_fortran=use_fortran,
+            force_use_openmp=args.force_use_openmp,
+            force_no_openmp=args.force_no_openmp,
+            radial_chunk_size=spherical_wavefield["radial_chunk_size"],
+            compression=spherical_wavefield["compression"],
+            write_xdmf=spherical_wavefield["write_xdmf"],
+            center=spherical_wavefield["center"],
+        )
+
+        logger.info("=" * 40)
+        logger.info("Finished spherical wavefield step at {time}", time=datetime.now())
+        logger.info(
+            "Wrote {n} snapshots (field shape {shape}) in {duration:.2f} seconds",
+            n=meta["n_snapshots"],
+            shape=meta["field_shape"],
+            duration=time.perf_counter() - wavefield_start,
+        )
+        logger.info("   HDF5: {path}", path=meta["h5_path"])
+        if meta["xdmf_path"] is not None:
+            logger.info("   XDMF: {path}", path=meta["xdmf_path"])
+        logger.info("=" * 40)

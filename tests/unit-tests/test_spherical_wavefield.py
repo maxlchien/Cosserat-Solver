@@ -140,7 +140,7 @@ def test_radial_tensor_nonpositive_radii_raises():
 
 def test_radial_tensor_off_origin_source_raises():
     source = Ricker3D({"f0": 10.0, "location": [1.0, 0.0, 0.0]})
-    with pytest.raises(ValueError, match="source at the origin"):
+    with pytest.raises(ValueError, match="source at the wavefield center"):
         compute_source_radial_tensor(
             np.array([1.0, 2.0]),
             {**SIM_PARAMS, "t0": 0.0},
@@ -610,3 +610,104 @@ def test_close_phi_seam_wraps_first_slice(tmp_path):
                 np.testing.assert_array_equal(
                     d_closed[:, :, -1, :], d_closed[:, :, 0, :]
                 )
+
+
+# ---------------------------------------------------------------------------
+# Non-origin center
+# ---------------------------------------------------------------------------
+
+
+def test_compute_radial_tensor_center_mismatch_raises():
+    """A source that does not sit at the requested center is rejected."""
+    source = Ricker3D({"f0": 10.0, "location": [0.0, 0.0, 0.0]})
+    with pytest.raises(ValueError, match="wavefield center"):
+        compute_source_radial_tensor(
+            np.array([1.0, 2.0]),
+            {**SIM_PARAMS, "t0": 0.0},
+            MATERIAL_PARAMS,
+            source,
+            consts.MATERIAL_TYPE_COSSERAT,
+            center=np.array([5.0, 0.0, 0.0]),
+        )
+
+
+def test_write_spherical_wavefield_bad_center_shape_raises(tmp_path):
+    """A center that is not a length-3 vector is rejected before any solve."""
+    source = make_source()
+    with pytest.raises(ValueError, match="length-3"):
+        write_spherical_wavefield(
+            str(tmp_path / "bad.h5"),
+            np.array([10.0]),
+            np.array([0.0, np.pi]),
+            np.array([0.0]),
+            consts.DIMENSION_3D,
+            consts.MATERIAL_TYPE_COSSERAT,
+            MATERIAL_PARAMS,
+            [source],
+            {**SIM_PARAMS, "t0": source.t0()},
+            write_xdmf=False,
+            compression=None,
+            center=np.array([1.0, 2.0]),
+        )
+
+
+@pytest_fortran
+def test_write_spherical_wavefield_nonorigin_center_translates(tmp_path):
+    """A non-origin center is a rigid translation: the written fields match the
+    origin-centered run bit for bit, and /coordinates are offset by center.
+
+    The source is placed at the center in both runs; only the center (and hence
+    the receiver positions relative to it) is translated, which leaves the
+    Green's response identical.
+    """
+    h5py = pytest.importorskip("h5py")
+
+    center = np.array([1234.0, -567.0, 89.0])
+    radii = np.array([30.0, 60.0])
+    theta = np.array([0.0, np.pi / 2, np.pi])
+    phi = np.array([0.0, np.pi / 2, np.pi, 3 * np.pi / 2])
+
+    def run(source_location, center_arg, path):
+        source = Ricker3D(
+            {
+                "f0": 10.0,
+                "f": [1.0, -0.5, 0.3],
+                "fc": [0.2, 0.7, -0.4],
+                "location": list(source_location),
+            }
+        )
+        return write_spherical_wavefield(
+            str(path),
+            radii,
+            theta,
+            phi,
+            consts.DIMENSION_3D,
+            consts.MATERIAL_TYPE_COSSERAT,
+            MATERIAL_PARAMS,
+            [source],
+            {**SIM_PARAMS, "t0": source.t0()},
+            write_xdmf=False,
+            compression=None,
+            close_phi_seam=False,
+            center=center_arg,
+        )
+
+    origin_path = tmp_path / "origin.h5"
+    offset_path = tmp_path / "offset.h5"
+    meta_o = run([0.0, 0.0, 0.0], None, origin_path)
+    meta_c = run(center, center, offset_path)
+
+    with h5py.File(origin_path, "r") as fo, h5py.File(offset_path, "r") as fc:
+        # Coordinates are the origin grid shifted by center.
+        np.testing.assert_allclose(
+            fc["coordinates"][:], fo["coordinates"][:] + center, atol=1e-9
+        )
+        np.testing.assert_allclose(fc.attrs["source_center"], center, atol=1e-12)
+        np.testing.assert_allclose(fo.attrs["source_center"], np.zeros(3), atol=1e-12)
+        # Fields are unchanged by the translation.
+        for step_name in meta_o["step_names"]:
+            for field in ("Displacement", "Rotation"):
+                np.testing.assert_array_equal(
+                    fc[step_name][field][:], fo[step_name][field][:]
+                )
+    assert meta_c["field_shape"] == meta_o["field_shape"]

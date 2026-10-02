@@ -126,6 +126,7 @@ def compute_source_radial_tensor(
     force_no_openmp: bool = False,
     time_indices: np.ndarray | None = None,
     radial_chunk_size: int | None = None,
+    center: np.ndarray | None = None,
 ) -> tuple[np.ndarray, np.ndarray]:
     r"""
     Compute the time-domain radial Green tensor for a single source.
@@ -134,6 +135,10 @@ def compute_source_radial_tensor(
     radius (batched over radii and frequencies in one backend call per chunk),
     multiplies by the source spectrum, and inverse-transforms to time. By isotropy the
     full spherical field is later reconstructed from this radial tensor by rotation.
+
+    The medium is infinite and homogeneous, so a source away from the origin is a
+    rigid translation of the origin problem: the radial tensor depends only on the
+    position relative to the source and is computed identically for any ``center``.
 
     Returns ``(times, tensor)`` where::
 
@@ -150,7 +155,8 @@ def compute_source_radial_tensor(
     material_params : dict
         Material parameters (rho, lam, mu, nu, J, lam_c, mu_c, nu_c).
     source : SourceSpectrum
-        Source at the origin. ``source.location()`` must be length 3 and ~zero.
+        Source at the wavefield center. ``source.location()`` must be length 3 and
+        numerically equal to ``center``.
     material_type : int
         Material type (Cosserat or elastic).
     dim : int, default=consts.DIMENSION_3D
@@ -172,6 +178,9 @@ def compute_source_radial_tensor(
         workspace peaks at roughly ``chunk * N_dense * 36 * 100`` bytes, where
         ``N_dense`` is the oversampled FFT length
         (~N * extension_factor * refinement_factor). Chunk to keep this within budget.
+    center : np.ndarray | None, default=None
+        Wavefield center, a 3-vector (None means the origin). The source must sit
+        exactly at this point.
 
     Returns
     -------
@@ -196,7 +205,7 @@ def compute_source_radial_tensor(
         logger.error(err)
         raise ValueError(err)
     if np.any(radii <= 0.0):
-        err = "radii must be strictly positive (the source sits at the origin)."
+        err = "radii must be strictly positive (the source sits at the center)."
         logger.error(err)
         raise ValueError(err)
 
@@ -210,11 +219,20 @@ def compute_source_radial_tensor(
         logger.error(err)
         raise TypeError(err)
 
+    if center is None:
+        center = np.zeros(3, dtype=float)
+    else:
+        center = np.asarray(center, dtype=float)
+        if center.shape != (3,):
+            err = f"center must be a length-3 vector, got shape {center.shape}."
+            logger.error(err)
+            raise ValueError(err)
+
     location = np.asarray(source.location(), dtype=float)
-    if location.shape != (3,) or not np.allclose(location, 0.0):
+    if location.shape != (3,) or not np.allclose(location, center):
         err = (
-            "Spherical wavefields require a source at the origin; "
-            f"got location {location}."
+            "Spherical wavefields require the source at the wavefield center "
+            f"{center}; got location {location}."
         )
         logger.error(err)
         raise ValueError(err)
@@ -429,7 +447,7 @@ def generate_spherical_grid(
             logger.error(err)
             raise ValueError(err)
     if np.any(radii <= 0.0):
-        err = "radii must be strictly positive (the source sits at the origin)."
+        err = "radii must be strictly positive (the source sits at the center)."
         logger.error(err)
         raise ValueError(err)
     if np.any(theta < 0.0) or np.any(theta > np.pi):
@@ -511,6 +529,7 @@ def write_spherical_wavefield(
     compression: str | None = "gzip",
     write_xdmf: bool = True,
     close_phi_seam: bool = True,
+    center: np.ndarray | None = None,
 ) -> dict:
     """
     Compute and write the full spherical wavefield to HDF5 (+ XDMF sidecar).
@@ -546,7 +565,7 @@ def write_spherical_wavefield(
         Full material parameter dict (all 8 Cosserat keys; dummies ignored for
         elastic).
     sources : list[SourceSpectrum]
-        Sources at the origin. Their contributions are summed.
+        Sources at the wavefield center. Their contributions are summed.
     simulation_params : dict
         Fourier parameters. Not mutated; a copy is taken and ``t0`` resolved via
         :func:`_resolve_t0` for the shared grid.
@@ -567,6 +586,9 @@ def write_spherical_wavefield(
         rendered mesh is watertight (no missing wedge between the last ``phi`` column
         and ``phi=0``). Only correct when ``phi`` spans the full circle; set False for
         a partial-``phi`` (wedge) grid. Adds one column to the written ``phi`` axis.
+    center : np.ndarray | None, default=None
+        Wavefield center, a 3-vector (None means the origin). All sources must sit
+        exactly at this point; the written ``/coordinates`` are offset by it.
 
     Returns
     -------
@@ -598,12 +620,23 @@ def write_spherical_wavefield(
         logger.error(err)
         raise ValueError(err)
 
+    if center is None:
+        center = np.zeros(3, dtype=float)
+    else:
+        center = np.asarray(center, dtype=float)
+        if center.shape != (3,):
+            err = f"center must be a length-3 vector, got shape {center.shape}."
+            logger.error(err)
+            raise ValueError(err)
+
     # Shared time grid: copy params (do not mutate the caller's dict) and resolve t0.
     sim = dict(simulation_params)
     sim["t0"] = _resolve_t0(sim, sources)
 
-    # Grid geometry and rotations (validation happens inside these helpers).
+    # Grid geometry and rotations (validation happens inside these helpers). The grid
+    # is built about the origin, then rigidly translated to the wavefield center.
     _directions, coordinates = generate_spherical_grid(radii, theta, phi)
+    coordinates = coordinates + center
     radii = np.asarray(radii, dtype=float)
     theta = np.asarray(theta, dtype=float)
     phi = np.asarray(phi, dtype=float)
@@ -649,7 +682,7 @@ def write_spherical_wavefield(
         h5.attrs["phi_definition"] = "azimuth from +x toward +y"
         h5.attrs["displacement_components"] = COMPONENT_NAMES[:3]
         h5.attrs["rotation_components"] = COMPONENT_NAMES[3:]
-        h5.attrs["source_center"] = np.array([0.0, 0.0, 0.0])
+        h5.attrs["source_center"] = center
         h5.attrs["steps_per_snapshot"] = interval
         h5.attrs["dt"] = float(sim["dt"])
         h5.attrs["t0"] = float(sim["t0"])
@@ -669,6 +702,7 @@ def write_spherical_wavefield(
                 force_no_openmp=force_no_openmp,
                 time_indices=snapshot_idx,
                 radial_chunk_size=radial_chunk_size,
+                center=center,
             )  # (n_r, n_snap, 6, 6)
 
             f = np.asarray(source.direction(), dtype=float)
