@@ -8,6 +8,12 @@ void greens_displacement_force_vectorized_wrapper(double x[3], double omega[], i
                           double rho, double lam, double mu,
                           int force_use_openmp, int force_no_openmp,
                           double G_real[/* n_omega * 3 * 3 */], double G_imag[/* n_omega * 3 * 3 */]);
+void greens_displacement_force_points_vectorized_wrapper(double points[/* 3 * n_points */], int n_points,
+                          double omega[], int n_omega,
+                          double rho, double lam, double mu,
+                          int force_use_openmp, int force_no_openmp,
+                          double G_real[/* n_points * n_omega * 3 * 3 */],
+                          double G_imag[/* n_points * n_omega * 3 * 3 */]);
 
 // Python wrapper for greens_displacement_force
 static PyObject* py_greens_displacement_force(PyObject* self, PyObject* args) {
@@ -147,11 +153,82 @@ static PyObject* py_greens_displacement_force_vectorized(PyObject* self, PyObjec
     return result;
 }
 
+// Python wrapper for batched (points x frequencies) greens_displacement_force.
+// Fills caller-allocated numpy buffers via the buffer protocol. The Fortran
+// output result_real(n_omega, 3, 3, n_points) in column-major order is
+// byte-identical to a C-order (n_points, 3, 3, n_omega) numpy array, so the
+// output buffers are passed straight through without any copy or index math.
+static PyObject* py_greens_displacement_force_points_vectorized(PyObject* self, PyObject* args) {
+    PyObject *points_obj, *omega_obj, *out_real_obj, *out_imag_obj;
+    double rho, lam, mu;
+    int force_use_openmp = 0;
+    int force_no_openmp = 0;
+    Py_buffer points_buf, omega_buf, real_buf, imag_buf;
+
+    if (!PyArg_ParseTuple(args, "OOdddiiOO",
+                          &points_obj, &omega_obj,
+                          &rho, &lam, &mu,
+                          &force_use_openmp, &force_no_openmp,
+                          &out_real_obj, &out_imag_obj)) {
+        return NULL;
+    }
+
+    if (PyObject_GetBuffer(points_obj, &points_buf, PyBUF_C_CONTIGUOUS) != 0) {
+        return NULL;
+    }
+    if (PyObject_GetBuffer(omega_obj, &omega_buf, PyBUF_C_CONTIGUOUS) != 0) {
+        PyBuffer_Release(&points_buf);
+        return NULL;
+    }
+    if (PyObject_GetBuffer(out_real_obj, &real_buf, PyBUF_C_CONTIGUOUS | PyBUF_WRITABLE) != 0) {
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        return NULL;
+    }
+    if (PyObject_GetBuffer(out_imag_obj, &imag_buf, PyBUF_C_CONTIGUOUS | PyBUF_WRITABLE) != 0) {
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        PyBuffer_Release(&real_buf);
+        return NULL;
+    }
+
+    Py_ssize_t n_points = points_buf.len / (3 * (Py_ssize_t)sizeof(double));
+    Py_ssize_t n_omega = omega_buf.len / (Py_ssize_t)sizeof(double);
+
+    /* Guard the output length: a short buffer would overflow in the Fortran call. */
+    if (real_buf.len != n_points * n_omega * 9 * (Py_ssize_t)sizeof(double) ||
+        imag_buf.len != n_points * n_omega * 9 * (Py_ssize_t)sizeof(double)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "output buffers must have length n_points * n_omega * 9");
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        PyBuffer_Release(&real_buf);
+        PyBuffer_Release(&imag_buf);
+        return NULL;
+    }
+
+    greens_displacement_force_points_vectorized_wrapper(
+        (double*)points_buf.buf, (int32_t)n_points,
+        (double*)omega_buf.buf, (int32_t)n_omega,
+        rho, lam, mu,
+        force_use_openmp, force_no_openmp,
+        (double*)real_buf.buf, (double*)imag_buf.buf);
+
+    PyBuffer_Release(&points_buf);
+    PyBuffer_Release(&omega_buf);
+    PyBuffer_Release(&real_buf);
+    PyBuffer_Release(&imag_buf);
+
+    Py_RETURN_NONE;
+}
+
 static PyMethodDef ElasticMethods[] = {
     {"greens_displacement_force", py_greens_displacement_force, METH_VARARGS,
      "Compute Green's function for displacement force"},
     {"greens_displacement_force_vectorized", py_greens_displacement_force_vectorized, METH_VARARGS,
      "Compute Green's function for displacement force (vectorized)"},
+    {"greens_displacement_force_points_vectorized", py_greens_displacement_force_points_vectorized, METH_VARARGS,
+     "Compute Green's function for displacement force batched over points and frequencies"},
     {NULL, NULL, 0, NULL}
 };
 

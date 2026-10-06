@@ -742,3 +742,112 @@ def greens_rotation_force_static(
             x, _rho, _lam, _mu, _nu, _J, _lam_c, _mu_c, _nu_c
         )
     )
+
+
+def greens_mixed_force_points_vectorized(
+    points: np.ndarray,
+    omega: np.ndarray,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Compute the mixed-force Green's function over a batch of positions and frequencies.
+
+    Evaluates every (position, frequency) pair in a single backend call, filling
+    caller-allocated buffers via the buffer protocol (no per-element marshalling).
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Positions at which to evaluate, shape (n_points, 3).
+    omega : np.ndarray
+        Angular frequencies, shape (n_omega,).
+    rho : float
+        Density of the medium
+    lam : float
+        Lamé's first parameter
+    mu : float
+        Shear modulus
+    nu : float
+        Cosserat couple modulus
+    J : float
+        Micro-inertia
+    lam_c : float
+        Cosserat Lamé's first parameter
+    mu_c : float
+        Cosserat shear modulus
+    nu_c : float
+        Cosserat couple modulus
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+        Mutually exclusive with force_no_openmp.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
+        Mutually exclusive with force_use_openmp.
+
+    Returns
+    -------
+    np.ndarray
+        Complex array of shape (n_points, n_omega, 6, 6).
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True, or if the input
+        shapes are invalid.
+    """
+
+    # Validate mutual exclusivity
+    if force_use_openmp and force_no_openmp:
+        err = "force_use_openmp and force_no_openmp are mutually exclusive"
+        raise ValueError(err)
+
+    points = np.ascontiguousarray(points, dtype=np.float64)
+    if points.ndim != 2 or points.shape[1] != 3:
+        err = "points must have shape (n_points, 3)"
+        raise ValueError(err)
+
+    omega_array = np.ascontiguousarray(omega, dtype=np.float64)
+    if omega_array.ndim != 1:
+        err = "omega must be a 1D array"
+        raise ValueError(err)
+    if omega_array.size < 1:
+        err = "omega must contain at least one frequency"
+        raise ValueError(err)
+
+    n_points = points.shape[0]
+    n_omega = omega_array.shape[0]
+
+    # Caller-allocated C-order buffers. The Fortran output
+    # result_real(n_omega, 6, 6, n_points) in column-major order is byte-identical
+    # to a C-order array of shape (n_points, 6, 6, n_omega) indexed [p, col, row, w].
+    out_real = np.empty((n_points, 6, 6, n_omega), dtype=np.float64)
+    out_imag = np.empty((n_points, 6, 6, n_omega), dtype=np.float64)
+
+    cosserat_core.greens_mixed_force_points_vectorized(
+        points,
+        omega_array,
+        rho,
+        lam,
+        mu,
+        nu,
+        J,
+        lam_c,
+        mu_c,
+        nu_c,
+        int(force_use_openmp),
+        int(force_no_openmp),
+        out_real,
+        out_imag,
+    )
+
+    # [p, col, row, w] -> [p, w, row, col]
+    return np.ascontiguousarray((out_real + 1j * out_imag).transpose(0, 3, 2, 1))

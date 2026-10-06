@@ -32,6 +32,13 @@ void greens_rotation_force_vectorized_wrapper(double x[3], double omega[], int n
                                             double J, double lam_c, double mu_c, double nu_c,
                                             int force_use_openmp, int force_no_openmp,
                                             double G_real[/* n_omega * 6 * 3 */], double G_imag[/* n_omega * 6 * 3 */]);
+void greens_mixed_force_points_vectorized_wrapper(double points[/* 3 * n_points */], int n_points,
+                                            double omega[], int n_omega,
+                                            double rho, double lam, double mu, double nu,
+                                            double J, double lam_c, double mu_c, double nu_c,
+                                            int force_use_openmp, int force_no_openmp,
+                                            double G_real[/* n_omega * 6 * 6 * n_points */],
+                                            double G_imag[/* n_omega * 6 * 6 * n_points */]);
 
 // Python wrapper for greens_mixed_force
 static PyObject* py_greens_mixed_force(PyObject* self, PyObject* args) {
@@ -339,6 +346,75 @@ static PyObject* py_greens_mixed_force_vectorized(PyObject* self, PyObject* args
     return result;
 }
 
+// Python wrapper for batched (points x frequency) greens_mixed_force.
+// Fills caller-allocated, C-contiguous float64 numpy buffers via the buffer
+// protocol. The Fortran output result_*(n_omega, 6, 6, n_points) in column-major
+// order is byte-identical to a C-order (n_points, 6, 6, n_omega) numpy array, so
+// the buffers pass straight through with no copy or index arithmetic.
+static PyObject* py_greens_mixed_force_points_vectorized(PyObject* self, PyObject* args) {
+    PyObject *points_obj, *omega_obj, *out_real_obj, *out_imag_obj;
+    double rho, lam, mu, nu, J, lam_c, mu_c, nu_c;
+    int force_use_openmp = 0;
+    int force_no_openmp = 0;
+    Py_buffer points_buf, omega_buf, real_buf, imag_buf;
+
+    if (!PyArg_ParseTuple(args, "OOddddddddiiOO",
+                          &points_obj, &omega_obj,
+                          &rho, &lam, &mu, &nu, &J, &lam_c, &mu_c, &nu_c,
+                          &force_use_openmp, &force_no_openmp,
+                          &out_real_obj, &out_imag_obj)) {
+        return NULL;
+    }
+
+    if (PyObject_GetBuffer(points_obj, &points_buf, PyBUF_C_CONTIGUOUS) != 0) {
+        return NULL;
+    }
+    if (PyObject_GetBuffer(omega_obj, &omega_buf, PyBUF_C_CONTIGUOUS) != 0) {
+        PyBuffer_Release(&points_buf);
+        return NULL;
+    }
+    if (PyObject_GetBuffer(out_real_obj, &real_buf, PyBUF_C_CONTIGUOUS | PyBUF_WRITABLE) != 0) {
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        return NULL;
+    }
+    if (PyObject_GetBuffer(out_imag_obj, &imag_buf, PyBUF_C_CONTIGUOUS | PyBUF_WRITABLE) != 0) {
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        PyBuffer_Release(&real_buf);
+        return NULL;
+    }
+
+    Py_ssize_t n_points = points_buf.len / (3 * (Py_ssize_t)sizeof(double));
+    Py_ssize_t n_omega = omega_buf.len / (Py_ssize_t)sizeof(double);
+
+    /* Guard the output length: a short buffer would overflow in the Fortran call. */
+    if (real_buf.len != n_points * n_omega * 36 * (Py_ssize_t)sizeof(double) ||
+        imag_buf.len != n_points * n_omega * 36 * (Py_ssize_t)sizeof(double)) {
+        PyErr_SetString(PyExc_ValueError,
+                        "output buffers must have length n_points * n_omega * 36");
+        PyBuffer_Release(&points_buf);
+        PyBuffer_Release(&omega_buf);
+        PyBuffer_Release(&real_buf);
+        PyBuffer_Release(&imag_buf);
+        return NULL;
+    }
+
+    greens_mixed_force_points_vectorized_wrapper(
+        (double*)points_buf.buf, (int32_t)n_points,
+        (double*)omega_buf.buf, (int32_t)n_omega,
+        rho, lam, mu, nu, J, lam_c, mu_c, nu_c,
+        force_use_openmp, force_no_openmp,
+        (double*)real_buf.buf, (double*)imag_buf.buf);
+
+    PyBuffer_Release(&points_buf);
+    PyBuffer_Release(&omega_buf);
+    PyBuffer_Release(&real_buf);
+    PyBuffer_Release(&imag_buf);
+
+    Py_RETURN_NONE;
+}
+
 // Python wrapper for vectorized greens_displacement_force
 static PyObject* py_greens_displacement_force_vectorized(PyObject* self, PyObject* args) {
     PyObject* x_obj;
@@ -546,6 +622,8 @@ static PyMethodDef CosseratMethods[] = {
      "Compute static Green's function for rotation force"},
     {"greens_mixed_force_vectorized", py_greens_mixed_force_vectorized, METH_VARARGS,
      "Compute Green's function for mixed force (vectorized)"},
+    {"greens_mixed_force_points_vectorized", py_greens_mixed_force_points_vectorized, METH_VARARGS,
+     "Compute Green's function for mixed force, batched over points and frequencies"},
     {"greens_displacement_force_vectorized", py_greens_displacement_force_vectorized, METH_VARARGS,
      "Compute Green's function for displacement force (vectorized)"},
     {"greens_rotation_force_vectorized", py_greens_rotation_force_vectorized, METH_VARARGS,

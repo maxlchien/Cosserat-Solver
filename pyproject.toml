@@ -9,12 +9,15 @@ authors = [
 requires-python = ">=3.12"
 dependencies = ["numpy", "scipy", "mpmath", "pyyaml", "matplotlib", "obspy", "loguru"]
 
+[project.optional-dependencies]
+wavefield = ["h5py"]
+
 
 [dependency-groups]
 examples = ["snakemake"]
 test = ["pytest", "pytest-xdist", "pytest-timeout",
     "numpy",
-    "scikit-build-core", "snakemake"]
+    "scikit-build-core", "snakemake", "h5py"]
 dev = [
     { include-group = "test"},
     "numpy",

@@ -5,6 +5,7 @@ module cosserat_core
   private
   public :: greens_mixed_force, greens_displacement_force, greens_rotation_force
   public :: greens_mixed_force_vectorized, greens_displacement_force_vectorized, greens_rotation_force_vectorized
+  public :: greens_mixed_force_points_vectorized
   public :: greens_displacement_force_static, greens_rotation_force_static
 
   real(rk), parameter :: pi = 3.141592653589793238462643383279502884197_rk
@@ -326,6 +327,56 @@ contains
     end do
   end if
 end function greens_mixed_force_vectorized
+
+function greens_mixed_force_points_vectorized(points, n_points, omega_array, n_omega, &
+                                    rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &
+                                    force_use_openmp, force_no_openmp) result(G_array)
+  ! Batched over spatial points and frequencies. points is column-major
+  ! (one point per column); the per-point 6x6 block matches the layout of
+  ! greens_mixed_force_vectorized so a caller can treat the result as a
+  ! C-order (n_points, 6, 6, n_omega) array without any copy.
+  integer, intent(in) :: n_points, n_omega
+  real(rk), intent(in) :: points(3, n_points)
+  real(rk), intent(in) :: omega_array(n_omega)
+  complex(rk) :: G_array(n_omega, 6, 6, n_points)
+  real(rk), intent(in) :: rho, lam, mu, nu, J, lam_c, mu_c, nu_c
+
+  integer :: i, p
+  logical, intent(in), optional :: force_use_openmp, force_no_openmp
+  logical :: use_openmp
+
+  ! force_use_openmp and force_no_openmp are mutually exclusive
+  if (present(force_use_openmp) .and. force_use_openmp .and. present(force_no_openmp) &
+  .and. force_no_openmp) then
+    error stop "force_use_openmp and force_no_openmp are mutually exclusive"
+  else if (present(force_use_openmp) .and. force_use_openmp) then
+    use_openmp = .true.
+  else if (present(force_no_openmp) .and. force_no_openmp) then
+    use_openmp = .false.
+  else
+    ! Auto-decide: parallelize over the combined point/frequency work
+    use_openmp = (n_points * n_omega > 1000)
+  end if
+
+  if (use_openmp) then
+!$OMP PARALLEL DO COLLAPSE(2) PRIVATE(p, i) SHARED(points, omega_array, G_array, &
+!$OMP& n_points, n_omega, rho, lam, mu, nu, J, lam_c, mu_c, nu_c) SCHEDULE(DYNAMIC)
+    do p = 1, n_points
+      do i = 1, n_omega
+        G_array(i, :, :, p) = greens_mixed_force(points(:, p), omega_array(i), &
+                                                 rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+      end do
+    end do
+!$OMP END PARALLEL DO
+  else
+    do p = 1, n_points
+      do i = 1, n_omega
+        G_array(i, :, :, p) = greens_mixed_force(points(:, p), omega_array(i), &
+                                                 rho, lam, mu, nu, J, lam_c, mu_c, nu_c)
+      end do
+    end do
+  end if
+end function greens_mixed_force_points_vectorized
 
 function greens_displacement_force_vectorized(x, omega_array, n_omega, &
                                     rho, lam, mu, nu, J, lam_c, mu_c, nu_c, &

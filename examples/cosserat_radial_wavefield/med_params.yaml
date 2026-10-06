@@ -1,0 +1,42 @@
+dimension: 3
+material_type: cosserat
+backend: auto # defaults to fortran. either fortran, python, or auto (auto will choose fortran if available, otherwise python)
+
+material_params:
+  rho:   1000
+  lam:   850790       # -> c1 = sqrt((lam+2mu)/rho) = 70
+  mu:    2024605      # -> c2 = sqrt((mu+nu)/rho)   = 45
+  nu:    394.784      # coupling modulus -> omega0 = sqrt(4 nu/J) = 12.566 rad/s = 4pi rad/s (so cutoff is 2Hz)
+  J:     10
+  lam_c: 43750        # -> c3 = sqrt((lam_c+2 mu_c)/J) = 100
+  mu_c:  28125
+  nu_c:  28125        # -> c4 = sqrt((mu_c+nu_c)/J) = 75
+
+simulation_params:
+  dt: 0.01
+  N: 1000
+  t0: -2.0
+  extension_factor: 16
+  refinement_factor: 32
+
+sources:
+  - type: Ricker
+    location: [0.0, 0.0, 0.0]
+    f0: 2.0
+    factor: 1
+    tshift: 0.0
+    f:  [0.0, 0.0, 0.0]
+    fc: [0.0, 0.0, 1.0]
+
+spherical_wavefield:
+  center: [0, 0, 0]          # optional; the origin. All sources must sit here.
+  # r_min: 5.0                 # optional; defaults to r_max / num_radii
+  r_max: 200.0               # required, > 0
+  num_radii: 48              # required, >= 1
+  num_theta: 32              # required, >= 2 (polar angle spans [0, pi])
+  num_phi: 48                # required, >= 1 (azimuth spans [0, 2*pi), plus 1 point to close the seam)
+  steps_per_snapshot: 10     # N=500 -> 50 snapshots
+  # directory: "OUTPUT_FILES/spherical_wavefield"  # optional; default <--o>/spherical_wavefield
+  write_xdmf: true
+  compression: gzip
+  # radial_chunk_size: 10      # optional, default null; bounds peak memory

@@ -216,6 +216,112 @@ def greens_mixed_force_vectorized(
     return G
 
 
+def greens_mixed_force_points_vectorized(
+    points: np.ndarray,
+    omega: np.ndarray,
+    rho: float,
+    lam: float,
+    mu: float,
+    nu: float,
+    J: float,
+    lam_c: float,
+    mu_c: float,
+    nu_c: float,
+    force_use_openmp: bool = False,
+    force_no_openmp: bool = False,
+) -> np.ndarray:
+    """
+    Compute the mixed-force Green's function over a batch of positions and frequencies
+    for a 3D elastic medium.
+
+    The elastic backend evaluates a 3x3 displacement-force block per (point, frequency);
+    it is embedded into the top-left 3x3 corner of a zero-filled 6x6 tensor to match the
+    Cosserat mixed-force convention. The Cosserat-only parameters are accepted for a
+    uniform signature and ignored.
+
+    Parameters
+    ----------
+    points : np.ndarray
+        Positions at which to evaluate, shape (n_points, 3).
+    omega : np.ndarray
+        Angular frequencies, shape (n_omega,).
+    rho : float
+        Density of the medium
+    lam : float
+        Lamé's first parameter
+    mu : float
+        Shear modulus
+    nu, J, lam_c, mu_c, nu_c : float
+        Cosserat parameters, unused for the elastic case.
+    force_use_openmp : bool, default=False
+        If True, force OpenMP parallelization even for small arrays.
+        Mutually exclusive with force_no_openmp.
+    force_no_openmp : bool, default=False
+        If True, disable OpenMP parallelization even for large arrays.
+        Mutually exclusive with force_use_openmp.
+
+    Returns
+    -------
+    np.ndarray
+        Complex array of shape (n_points, n_omega, 6, 6).
+
+    Raises
+    ------
+    ValueError
+        If both force_use_openmp and force_no_openmp are True, or if the input
+        shapes are invalid.
+    """
+    _ = (nu, J, lam_c, mu_c, nu_c)  # Unused parameters for the elastic case
+
+    # Validate mutual exclusivity
+    if force_use_openmp and force_no_openmp:
+        err = "force_use_openmp and force_no_openmp are mutually exclusive"
+        raise ValueError(err)
+
+    points = np.ascontiguousarray(points, dtype=np.float64)
+    if points.ndim != 2 or points.shape[1] != 3:
+        err = "points must have shape (n_points, 3)"
+        raise ValueError(err)
+
+    omega_array = np.ascontiguousarray(omega, dtype=np.float64)
+    if omega_array.ndim != 1:
+        err = "omega must be a 1D array"
+        raise ValueError(err)
+    if omega_array.size < 1:
+        err = "omega must contain at least one frequency"
+        raise ValueError(err)
+
+    n_points = points.shape[0]
+    n_omega = omega_array.shape[0]
+
+    # Caller-allocated C-order buffers. The Fortran output
+    # result_real(n_omega, 3, 3, n_points) in column-major order is byte-identical
+    # to a C-order array of shape (n_points, 3, 3, n_omega) indexed [p, col, row, w].
+    out_real = np.empty((n_points, 3, 3, n_omega), dtype=np.float64)
+    out_imag = np.empty((n_points, 3, 3, n_omega), dtype=np.float64)
+
+    elastic_core.greens_displacement_force_points_vectorized(
+        points,
+        omega_array,
+        rho,
+        lam,
+        mu,
+        int(force_use_openmp),
+        int(force_no_openmp),
+        out_real,
+        out_imag,
+    )
+
+    # [p, col, row, w] -> [p, w, row, col]  (3x3 displacement block)
+    disp_block = (out_real + 1j * out_imag).transpose(0, 3, 2, 1)
+
+    # Embed the 3x3 displacement block into the top-left corner of a 6x6 tensor,
+    # matching greens_mixed_force_vectorized's G[:, :3, :3] = disp convention.
+    G = np.zeros((n_points, n_omega, 6, 6), dtype=np.complex128)
+    G[:, :, :3, :3] = disp_block
+    return G
+
+
 def greens_displacement_force_from_dict(
     x: np.ndarray,
     omega: float,
